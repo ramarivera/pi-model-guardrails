@@ -1,0 +1,9 @@
+.pi/
+.entire/
+.codex/
+.husky/
+e2e/
+test/
+biome.json
+tsconfig.json
+
