@@ -1,5 +1,11 @@
 {
   "enabled": true,
+  "strategy_options": {
+    "checkpoint_remote": {
+      "provider": "github",
+      "repo": "ramarivera/pi-model-guardrails-entire-history"
+    }
+  },
   "telemetry": false,
   "external_agents": true
 }
