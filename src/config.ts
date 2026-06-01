@@ -11,6 +11,8 @@ const DEFAULT_CONFIG: GuardrailsConfig = {
     enabled: true,
     blockedTools: [],
     blockedPatterns: [],
+    explicitToolContractsEnabled: true,
+    providerMismatchMode: "deny",
   },
   patternRules: [],
   patternRulesEnabled: false,
@@ -69,6 +71,12 @@ function mergeConfig(partial: Partial<GuardrailsConfig>): GuardrailsConfig {
       blockedPatterns:
         partial.toolGuards?.blockedPatterns ??
         DEFAULT_CONFIG.toolGuards.blockedPatterns,
+      explicitToolContractsEnabled:
+        partial.toolGuards?.explicitToolContractsEnabled ??
+        DEFAULT_CONFIG.toolGuards.explicitToolContractsEnabled,
+      providerMismatchMode:
+        partial.toolGuards?.providerMismatchMode ??
+        DEFAULT_CONFIG.toolGuards.providerMismatchMode,
     },
     patternRules: partial.patternRules ?? DEFAULT_CONFIG.patternRules,
     patternRulesEnabled:

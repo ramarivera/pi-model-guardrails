@@ -8,9 +8,19 @@ import {
   type GuardrailsTelemetry,
 } from "./observability.ts";
 import { checkPatternRules } from "./pattern-rules.ts";
-import { shouldBlockToolCall } from "./tool-guard.ts";
+import {
+  describeActiveToolContract,
+  extractToolContracts,
+  mergeToolContracts,
+  shouldBlockToolCall,
+} from "./tool-guard.ts";
 import { TurnTracker } from "./turn-tracker.ts";
-import type { GuardrailsConfig, MessageEntry, Violation } from "./types.ts";
+import type {
+  ActiveToolContract,
+  GuardrailsConfig,
+  MessageEntry,
+  Violation,
+} from "./types.ts";
 
 export type ExtensionInfo = {
   name: string;
@@ -37,6 +47,7 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
   let turnTracker: TurnTracker;
   let telemetry: GuardrailsTelemetry = createNoopTelemetry();
   const messages: MessageEntry[] = [];
+  let activeToolContracts: ActiveToolContract[] = [];
   let isAnalyzing = false;
 
   pi.on("session_start", async (event, ctx) => {
@@ -53,6 +64,7 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
       async () => {
         turnTracker = new TurnTracker(config.samplingInterval ?? 1);
         messages.length = 0;
+        activeToolContracts = [];
         isAnalyzing = false;
 
         await telemetry.logEvent("config_loaded", {
@@ -61,6 +73,9 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
           toolGuardsEnabled: config.toolGuards.enabled,
           blockedTools: config.toolGuards.blockedTools ?? [],
           blockedPatterns: config.toolGuards.blockedPatterns ?? [],
+          explicitToolContractsEnabled:
+            config.toolGuards.explicitToolContractsEnabled,
+          providerMismatchMode: config.toolGuards.providerMismatchMode,
           patternRulesEnabled: config.patternRulesEnabled,
           patternRuleCount: config.patternRules.length,
           policyRuleCount: config.policyRules.length,
@@ -158,10 +173,24 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
             content,
           });
 
+          const extractedContracts = extractToolContracts(content);
+          if (extractedContracts.length > 0) {
+            activeToolContracts = mergeToolContracts(
+              activeToolContracts,
+              extractedContracts,
+            );
+          }
+
           await telemetry.logEvent("message_tracked", {
             role: event.message.role,
             contentLength: content.length,
             trackedMessages: messages.length,
+            extractedToolContracts: extractedContracts.map(
+              describeActiveToolContract,
+            ),
+            activeToolContracts: activeToolContracts.map(
+              describeActiveToolContract,
+            ),
           });
         }
       },
@@ -392,12 +421,26 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
           event.toolName,
           event.input as Record<string, unknown>,
           config.toolGuards,
+          activeToolContracts,
         );
 
         await telemetry.logEvent("tool_guard_decision", {
+          schemaVersion: blockResult.schemaVersion,
           toolName: event.toolName,
+          decision: blockResult.decision,
           blocked: blockResult.blocked,
           reason: blockResult.reason,
+          ruleId: blockResult.ruleId,
+          severity: blockResult.severity,
+          confidence: blockResult.confidence,
+          capability: blockResult.capability,
+          requestedProvider: blockResult.requestedProvider,
+          attemptedProvider: blockResult.attemptedProvider,
+          remediation: blockResult.remediation,
+          invocation: blockResult.invocation,
+          activeToolContracts: activeToolContracts.map(
+            describeActiveToolContract,
+          ),
           blockedTools: config.toolGuards.blockedTools ?? [],
           blockedPatterns: config.toolGuards.blockedPatterns ?? [],
         });

@@ -18,6 +18,8 @@ test("config defaults keep legacy pattern rules disabled and observability enabl
     ".pi/model-guardrails/events.jsonl",
   );
   assert.equal(config.observability?.logMessageUpdates, false);
+  assert.equal(config.toolGuards.explicitToolContractsEnabled, true);
+  assert.equal(config.toolGuards.providerMismatchMode, "deny");
 });
 
 test("config loads model-judged policy rules and observability overrides", async () => {
@@ -27,7 +29,11 @@ test("config loads model-judged policy rules and observability overrides", async
     join(dir, ".pi/guardrails.json"),
     JSON.stringify({
       analysisModel: "analysis-model",
-      toolGuards: { enabled: true },
+      toolGuards: {
+        enabled: true,
+        explicitToolContractsEnabled: false,
+        providerMismatchMode: "warn",
+      },
       observability: {
         enabled: true,
         logFile: ".pi/custom-guardrails.jsonl",
@@ -55,4 +61,6 @@ test("config loads model-judged policy rules and observability overrides", async
   assert.equal(config.patternRulesEnabled, false);
   assert.equal(config.observability?.logFile, ".pi/custom-guardrails.jsonl");
   assert.equal(config.observability?.logMessageUpdates, true);
+  assert.equal(config.toolGuards.explicitToolContractsEnabled, false);
+  assert.equal(config.toolGuards.providerMismatchMode, "warn");
 });

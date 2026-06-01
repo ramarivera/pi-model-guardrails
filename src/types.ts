@@ -46,6 +46,49 @@ export interface ToolGuardConfig {
   blockedTools?: string[];
   /** Patterns that, if found in tool input, trigger a block */
   blockedPatterns?: string[];
+  /** Whether explicit user tool-provider contracts should be enforced. Default true. */
+  explicitToolContractsEnabled?: boolean;
+  /** How to handle deterministic provider mismatches. Default deny. */
+  providerMismatchMode?: "deny" | "warn";
+}
+
+/** A deterministic runtime contract extracted from explicit user tool instructions. */
+export interface ActiveToolContract {
+  ruleId: string;
+  capability: string;
+  requiredProvider: string;
+  forbiddenProviders: string[];
+  source: "explicit_user_instruction";
+  severity: "error" | "warn";
+  originalText: string;
+}
+
+/** Normalized tool invocation used by deterministic pre-tool policy checks. */
+export interface NormalizedToolInvocation {
+  toolName: string;
+  capability?: string;
+  provider?: string;
+  command?: string;
+  confidence: number;
+}
+
+/** Canonical internal tool guard decision envelope. */
+export interface ToolGuardDecision {
+  schemaVersion: 1;
+  decision: "allow" | "deny" | "warn";
+  blocked: boolean;
+  reason: string;
+  ruleId?: string;
+  severity?: "error" | "warn";
+  confidence?: number;
+  capability?: string;
+  requestedProvider?: string;
+  attemptedProvider?: string;
+  invocation?: NormalizedToolInvocation;
+  remediation?: {
+    safeAlternativeTool?: string;
+    instruction: string;
+  };
 }
 
 /** Local JSONL observability for guardrail decisions and extension lifecycle. */
