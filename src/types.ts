@@ -33,6 +33,9 @@ export interface GuardrailsConfig {
 
   /** Natural-language policies evaluated by the guardrails analysis model. */
   policyRules: PolicyRule[];
+
+  /** Local observability and decision audit configuration. */
+  observability?: GuardrailsObservabilityConfig;
 }
 
 /** Tool guard configuration */
@@ -43,6 +46,16 @@ export interface ToolGuardConfig {
   blockedTools?: string[];
   /** Patterns that, if found in tool input, trigger a block */
   blockedPatterns?: string[];
+}
+
+/** Local JSONL observability for guardrail decisions and extension lifecycle. */
+export interface GuardrailsObservabilityConfig {
+  /** Whether local telemetry should be written. Default true. */
+  enabled?: boolean;
+  /** Log file path. Relative paths resolve from the session cwd. */
+  logFile?: string;
+  /** Whether to log high-volume token/message update events. Default false. */
+  logMessageUpdates?: boolean;
 }
 
 /** A configurable pattern rule for code/instruction detection */

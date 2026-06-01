@@ -15,6 +15,11 @@ const DEFAULT_CONFIG: GuardrailsConfig = {
   patternRules: [],
   patternRulesEnabled: false,
   policyRules: [],
+  observability: {
+    enabled: true,
+    logFile: ".pi/model-guardrails/events.jsonl",
+    logMessageUpdates: false,
+  },
 };
 
 const CONFIG_PATHS = [
@@ -69,6 +74,15 @@ function mergeConfig(partial: Partial<GuardrailsConfig>): GuardrailsConfig {
     patternRulesEnabled:
       partial.patternRulesEnabled ?? DEFAULT_CONFIG.patternRulesEnabled,
     policyRules: partial.policyRules ?? DEFAULT_CONFIG.policyRules,
+    observability: {
+      enabled:
+        partial.observability?.enabled ?? DEFAULT_CONFIG.observability?.enabled,
+      logFile:
+        partial.observability?.logFile ?? DEFAULT_CONFIG.observability?.logFile,
+      logMessageUpdates:
+        partial.observability?.logMessageUpdates ??
+        DEFAULT_CONFIG.observability?.logMessageUpdates,
+    },
   };
 }
 

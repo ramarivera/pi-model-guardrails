@@ -5,16 +5,22 @@ import { join } from "node:path";
 import test from "node:test";
 import { loadConfig } from "../src/config.ts";
 
-test("config defaults keep legacy pattern rules disabled", async () => {
+test("config defaults keep legacy pattern rules disabled and observability enabled", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pi-guardrails-config-"));
   const config = await loadConfig(dir);
 
   assert.equal(config.patternRulesEnabled, false);
   assert.deepEqual(config.patternRules, []);
   assert.deepEqual(config.policyRules, []);
+  assert.equal(config.observability?.enabled, true);
+  assert.equal(
+    config.observability?.logFile,
+    ".pi/model-guardrails/events.jsonl",
+  );
+  assert.equal(config.observability?.logMessageUpdates, false);
 });
 
-test("config loads model-judged policy rules", async () => {
+test("config loads model-judged policy rules and observability overrides", async () => {
   const dir = await mkdtemp(join(tmpdir(), "pi-guardrails-config-"));
   await mkdir(join(dir, ".pi"));
   await writeFile(
@@ -22,6 +28,11 @@ test("config loads model-judged policy rules", async () => {
     JSON.stringify({
       analysisModel: "analysis-model",
       toolGuards: { enabled: true },
+      observability: {
+        enabled: true,
+        logFile: ".pi/custom-guardrails.jsonl",
+        logMessageUpdates: true,
+      },
       policyRules: [
         {
           id: "do-not-remove-features-to-fix",
@@ -42,4 +53,6 @@ test("config loads model-judged policy rules", async () => {
   assert.equal(config.policyRules.length, 1);
   assert.equal(config.policyRules[0]?.id, "do-not-remove-features-to-fix");
   assert.equal(config.patternRulesEnabled, false);
+  assert.equal(config.observability?.logFile, ".pi/custom-guardrails.jsonl");
+  assert.equal(config.observability?.logMessageUpdates, true);
 });
