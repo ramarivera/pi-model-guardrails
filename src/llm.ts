@@ -1,18 +1,7 @@
+import type { Context, Message, TextContent } from "@earendil-works/pi-ai";
+import { complete } from "@earendil-works/pi-ai";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { ViolationAnalysis } from "./types.ts";
-
-interface LLMMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string;
-}
-
-interface LLMResponse {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
-}
+import type { ConversationMessage, ViolationAnalysis } from "./types.ts";
 
 /**
  * Find a model in the Pi registry by identifier.
@@ -29,9 +18,55 @@ function findModel(
   return match;
 }
 
+function toTextContent(text: string): TextContent[] {
+  return [{ type: "text", text }];
+}
+
+function buildContext(
+  systemPrompt: string,
+  messages: ConversationMessage[],
+): Context {
+  const piMessages: Message[] = [];
+  const now = Date.now();
+
+  for (const msg of messages) {
+    if (msg.role === "system") {
+      // System prompt is handled separately in Context
+      continue;
+    }
+    if (msg.role === "user") {
+      piMessages.push({
+        role: "user",
+        content: toTextContent(msg.content),
+        timestamp: now,
+      });
+    } else if (msg.role === "assistant") {
+      // Cast to Message: the provider only needs role + content for context
+      piMessages.push({
+        role: "assistant",
+        content: toTextContent(msg.content),
+      } as Message);
+    } else if (msg.role === "tool") {
+      piMessages.push({
+        role: "toolResult",
+        toolCallId: "",
+        toolName: "",
+        content: toTextContent(msg.content),
+        isError: false,
+        timestamp: now,
+      });
+    }
+  }
+
+  return {
+    systemPrompt,
+    messages: piMessages,
+  };
+}
+
 export async function analyzeConversation(
   analysisModelId: string,
-  conversation: LLMMessage[],
+  conversation: ConversationMessage[],
   systemInstructions: string,
   appliedSkills: string[],
   activeGoal: string | undefined,
@@ -74,12 +109,10 @@ export async function analyzeConversation(
     appliedSkills,
     activeGoal,
   );
-  const messages: LLMMessage[] = [
-    { role: "system", content: systemPrompt },
-    ...conversation,
-  ];
 
-  const response = await callLLM(model.baseUrl, model.id, auth, messages);
+  const context = buildContext(systemPrompt, conversation);
+
+  const response = await callLLM(model, auth, context);
   return parseViolationResponse(response);
 }
 
@@ -140,43 +173,29 @@ If NO violation: set violation=false, confidence=0.0, and leave other fields emp
 }
 
 async function callLLM(
-  baseUrl: string,
-  modelId: string,
+  model: ReturnType<typeof findModel>,
   auth: {
     apiKey?: string;
     headers?: Record<string, string>;
   },
-  messages: LLMMessage[],
+  context: Context,
 ): Promise<string> {
-  const body = {
-    model: modelId,
-    messages,
-    temperature: 0.1,
-    max_tokens: 2000,
-    response_format: { type: "json_object" },
-  };
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(auth.headers ?? {}),
-  };
-  if (auth.apiKey) {
-    headers.Authorization = `Bearer ${auth.apiKey}`;
+  if (!model) {
+    throw new Error("[guardrails] No model provided for analysis");
   }
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
+  const result = await complete(model, context, {
+    temperature: 0.1,
+    maxTokens: 2000,
+    apiKey: auth.apiKey,
+    headers: auth.headers,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`LLM API error ${response.status}: ${errorText}`);
-  }
+  const textBlocks = result.content.filter(
+    (c): c is TextContent => c.type === "text",
+  );
 
-  const data = (await response.json()) as LLMResponse;
-  return data.choices[0]?.message?.content ?? "";
+  return textBlocks.map((t) => t.text).join("");
 }
 
 function parseViolationResponse(content: string): ViolationAnalysis {
