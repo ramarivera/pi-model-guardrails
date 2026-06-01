@@ -21,7 +21,7 @@ test("e2e fixture imports the live local .pi extension shim", async () => {
   assert.deepEqual(settings.extensions, [
     "../../.pi/extensions/model-guardrails/index.ts",
   ]);
-  assert.equal(extension.name, "model-guardrails");
+  assert.equal(typeof extension, "function");
   assert.equal(
     extensionInfo.description,
     "Opinionated model guardrails that detect instruction violations and course-correct",

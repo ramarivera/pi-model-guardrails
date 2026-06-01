@@ -4,10 +4,4 @@ import guardrailsExtension, {
 } from "./extension.ts";
 
 export { createExtension, extensionInfo };
-
-const defaultExport = {
-  ...createExtension(),
-  activate: () => guardrailsExtension,
-};
-
-export default defaultExport;
+export default guardrailsExtension;
