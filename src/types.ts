@@ -22,8 +22,17 @@ export interface GuardrailsConfig {
   /** Tool guard configuration */
   toolGuards: ToolGuardConfig;
 
-  /** Configurable pattern rules for code/instruction detection */
+  /**
+   * Legacy regex/string pattern rules for exact textual tripwires.
+   * Disabled unless patternRulesEnabled is true.
+   */
   patternRules: PatternRule[];
+
+  /** Whether legacy patternRules should be evaluated. Default false. */
+  patternRulesEnabled?: boolean;
+
+  /** Natural-language policies evaluated by the guardrails analysis model. */
+  policyRules: PolicyRule[];
 }
 
 /** Tool guard configuration */
@@ -56,6 +65,24 @@ export interface PatternRule {
   explanation: string;
   /** File extensions this rule applies to (e.g., ['.ts', '.tsx']). Empty = all. */
   fileExtensions?: string[];
+}
+
+/** A model-judged policy rule for intent-aware guardrails. */
+export interface PolicyRule {
+  /** Unique rule ID */
+  id: string;
+  /** Short human-readable name */
+  title: string;
+  /** User-facing explanation of the policy */
+  description: string;
+  /** When this policy applies */
+  appliesWhen: string;
+  /** What counts as a violation */
+  violation: string;
+  /** What the model should do instead */
+  requiredBehavior: string;
+  /** Severity used by the analyzer when confidence is high enough */
+  severity: "error" | "warn";
 }
 
 /** Combined violation: can be from LLM analysis or pattern rule */

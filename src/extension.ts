@@ -84,7 +84,9 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
 
     // Check pattern rules first (fast, local, no LLM call)
     const patternViolations =
-      config.patternRules && config.patternRules.length > 0
+      config.patternRulesEnabled &&
+      config.patternRules &&
+      config.patternRules.length > 0
         ? checkPatternRules(config.patternRules, messages)
         : [];
 

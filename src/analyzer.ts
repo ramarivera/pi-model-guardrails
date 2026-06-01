@@ -26,6 +26,7 @@ export async function analyzeForViolation(
       systemInstructions,
       appliedSkills,
       activeGoal,
+      config.policyRules,
       ctx,
     );
 

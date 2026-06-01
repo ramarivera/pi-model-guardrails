@@ -13,6 +13,8 @@ const DEFAULT_CONFIG: GuardrailsConfig = {
     blockedPatterns: [],
   },
   patternRules: [],
+  patternRulesEnabled: false,
+  policyRules: [],
 };
 
 const CONFIG_PATHS = [
@@ -64,6 +66,9 @@ function mergeConfig(partial: Partial<GuardrailsConfig>): GuardrailsConfig {
         DEFAULT_CONFIG.toolGuards.blockedPatterns,
     },
     patternRules: partial.patternRules ?? DEFAULT_CONFIG.patternRules,
+    patternRulesEnabled:
+      partial.patternRulesEnabled ?? DEFAULT_CONFIG.patternRulesEnabled,
+    policyRules: partial.policyRules ?? DEFAULT_CONFIG.policyRules,
   };
 }
 
