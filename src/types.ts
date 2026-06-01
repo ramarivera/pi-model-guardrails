@@ -50,6 +50,42 @@ export interface ToolGuardConfig {
   explicitToolContractsEnabled?: boolean;
   /** How to handle deterministic provider mismatches. Default deny. */
   providerMismatchMode?: "deny" | "warn";
+  /** Configured tool-provider contracts extracted from explicit user instructions. */
+  toolContracts?: ToolContractRule[];
+  /** Configured deterministic provider detectors for tool calls. */
+  providerDetectors?: ToolProviderDetector[];
+}
+
+/** Configured runtime contract extracted from explicit user tool instructions. */
+export interface ToolContractRule {
+  /** Stable rule ID shown in logs and block reasons. */
+  id: string;
+  /** Capability namespace, e.g. browser_automation. */
+  capability: string;
+  /** Provider that must be used while this contract is active. */
+  requiredProvider: string;
+  /** Providers that must not be used while this contract is active. */
+  forbiddenProviders: string[];
+  /** Regex patterns matched against user text to activate this contract. */
+  triggerPatterns: string[];
+  /** Severity for matching violations. Default error. */
+  severity?: "error" | "warn";
+}
+
+/** Configured detector that maps a tool call into a provider/capability. */
+export interface ToolProviderDetector {
+  /** Provider name emitted by this detector. */
+  provider: string;
+  /** Capability namespace emitted by this detector. */
+  capability: string;
+  /** Regex patterns matched against the Pi tool name. */
+  toolNamePatterns?: string[];
+  /** Regex patterns matched against extracted command/script/code text. */
+  commandPatterns?: string[];
+  /** Regex patterns matched against serialized tool input. */
+  inputPatterns?: string[];
+  /** Detector confidence. Default 0.9. */
+  confidence?: number;
 }
 
 /** A deterministic runtime contract extracted from explicit user tool instructions. */

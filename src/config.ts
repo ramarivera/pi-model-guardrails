@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type { GuardrailsConfig } from "./types.ts";
 
@@ -13,6 +14,8 @@ const DEFAULT_CONFIG: GuardrailsConfig = {
     blockedPatterns: [],
     explicitToolContractsEnabled: true,
     providerMismatchMode: "deny",
+    toolContracts: [],
+    providerDetectors: [],
   },
   patternRules: [],
   patternRulesEnabled: false,
@@ -33,25 +36,37 @@ const CONFIG_PATHS = [
   ".config/pi/guardrails.config.json",
 ];
 
-export async function loadConfig(cwd: string): Promise<GuardrailsConfig> {
-  for (const relativePath of CONFIG_PATHS) {
-    const absolutePath = join(cwd, relativePath);
-    if (existsSync(absolutePath)) {
-      try {
-        const content = await readFile(absolutePath, "utf-8");
-        const parsed = JSON.parse(
-          stripJsonComments(content),
-        ) as Partial<GuardrailsConfig>;
-        return mergeConfig(parsed);
-      } catch (error) {
-        console.warn(
-          `[guardrails] Failed to parse config at ${absolutePath}: ${error}`,
-        );
-      }
+export interface LoadConfigOptions {
+  /** Set false to skip global config, or a string to force a specific global config file. */
+  globalConfigPath?: string | false;
+}
+
+export async function loadConfig(
+  cwd: string,
+  options: LoadConfigOptions = {},
+): Promise<GuardrailsConfig> {
+  const partials: Partial<GuardrailsConfig>[] = [];
+
+  for (const absolutePath of configPaths(cwd, options)) {
+    if (!existsSync(absolutePath)) continue;
+    try {
+      const content = await readFile(absolutePath, "utf-8");
+      partials.push(
+        JSON.parse(stripJsonComments(content)) as Partial<GuardrailsConfig>,
+      );
+    } catch (error) {
+      console.warn(
+        `[guardrails] Failed to parse config at ${absolutePath}: ${error}`,
+      );
     }
   }
 
-  return { ...DEFAULT_CONFIG };
+  const partial = partials.reduce<Partial<GuardrailsConfig>>(
+    (merged, next) => deepMerge(merged, next),
+    {},
+  );
+
+  return mergeConfig(partial);
 }
 
 function mergeConfig(partial: Partial<GuardrailsConfig>): GuardrailsConfig {
@@ -77,6 +92,12 @@ function mergeConfig(partial: Partial<GuardrailsConfig>): GuardrailsConfig {
       providerMismatchMode:
         partial.toolGuards?.providerMismatchMode ??
         DEFAULT_CONFIG.toolGuards.providerMismatchMode,
+      toolContracts:
+        partial.toolGuards?.toolContracts ??
+        DEFAULT_CONFIG.toolGuards.toolContracts,
+      providerDetectors:
+        partial.toolGuards?.providerDetectors ??
+        DEFAULT_CONFIG.toolGuards.providerDetectors,
     },
     patternRules: partial.patternRules ?? DEFAULT_CONFIG.patternRules,
     patternRulesEnabled:
@@ -92,6 +113,43 @@ function mergeConfig(partial: Partial<GuardrailsConfig>): GuardrailsConfig {
         DEFAULT_CONFIG.observability?.logMessageUpdates,
     },
   };
+}
+
+function configPaths(cwd: string, options: LoadConfigOptions): string[] {
+  const paths: string[] = [];
+
+  if (options.globalConfigPath !== false) {
+    paths.push(
+      options.globalConfigPath ??
+        process.env.PI_MODEL_GUARDRAILS_CONFIG ??
+        join(
+          process.env.PI_CODING_AGENT_DIR ?? join(homedir(), ".pi", "agent"),
+          "guardrails.json",
+        ),
+    );
+  }
+
+  paths.push(...CONFIG_PATHS.map((relativePath) => join(cwd, relativePath)));
+  return [...new Set(paths)];
+}
+
+function deepMerge<T extends Record<string, unknown>>(base: T, overlay: T): T {
+  const result: Record<string, unknown> = { ...base };
+
+  for (const [key, value] of Object.entries(overlay)) {
+    const existing = result[key];
+    if (isPlainRecord(existing) && isPlainRecord(value)) {
+      result[key] = deepMerge(existing, value);
+    } else {
+      result[key] = value;
+    }
+  }
+
+  return result as T;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 function stripJsonComments(content: string): string {

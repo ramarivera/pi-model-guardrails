@@ -1,38 +1,26 @@
 import type {
   ActiveToolContract,
   NormalizedToolInvocation,
+  ToolContractRule,
   ToolGuardConfig,
   ToolGuardDecision,
+  ToolProviderDetector,
 } from "./types.ts";
 
-const AGENT_BROWSER_REQUIRED_PATTERNS = [
-  /\b(?:use|using|with|via|prefer|preferred|require|required|requested|explicitly\s+requested)\s+(?:the\s+)?agent[-\s]?browser\b/i,
-  /\bagent[-\s]?browser\b[^.\n]{0,80}\b(?:required|requested|explicit|instead|must|only)\b/i,
-  /\bdo\s+not\s+use\s+playwright\b/i,
-  /\bno\s+playwright\b/i,
-];
+export function extractToolContracts(
+  content: string,
+  config: ToolGuardConfig,
+): ActiveToolContract[] {
+  if (config.explicitToolContractsEnabled === false) return [];
 
-export function extractToolContracts(content: string): ActiveToolContract[] {
   const normalized = content.replace(/\s+/g, " ").trim();
   if (!normalized) return [];
 
-  if (
-    !AGENT_BROWSER_REQUIRED_PATTERNS.some((pattern) => pattern.test(normalized))
-  ) {
-    return [];
-  }
-
-  return [
-    {
-      ruleId: "tool.browser.required-provider.agent-browser",
-      capability: "browser_automation",
-      requiredProvider: "agent-browser",
-      forbiddenProviders: ["playwright", "puppeteer", "cypress"],
-      source: "explicit_user_instruction",
-      severity: "error",
-      originalText: normalized,
-    },
-  ];
+  return (config.toolContracts ?? [])
+    .filter((contract) =>
+      patternListMatches(contract.triggerPatterns, normalized),
+    )
+    .map((contract) => activeContractFromRule(contract, normalized));
 }
 
 export function mergeToolContracts(
@@ -51,49 +39,21 @@ export function mergeToolContracts(
 export function normalizeToolInvocation(
   toolName: string,
   input: Record<string, unknown>,
+  config: ToolGuardConfig,
 ): NormalizedToolInvocation {
   const command = extractCommand(input);
-  const haystack =
-    `${toolName}\n${command ?? ""}\n${JSON.stringify(input)}`.toLowerCase();
+  const serializedInput = JSON.stringify(input);
 
-  if (isAgentBrowserTool(toolName, haystack)) {
-    return {
-      toolName,
-      capability: "browser_automation",
-      provider: "agent-browser",
-      command,
-      confidence: 0.98,
-    };
-  }
-
-  if (isPlaywrightInvocation(haystack)) {
-    return {
-      toolName,
-      capability: "browser_automation",
-      provider: "playwright",
-      command,
-      confidence: 0.98,
-    };
-  }
-
-  if (isPuppeteerInvocation(haystack)) {
-    return {
-      toolName,
-      capability: "browser_automation",
-      provider: "puppeteer",
-      command,
-      confidence: 0.94,
-    };
-  }
-
-  if (isCypressInvocation(haystack)) {
-    return {
-      toolName,
-      capability: "browser_automation",
-      provider: "cypress",
-      command,
-      confidence: 0.94,
-    };
+  for (const detector of config.providerDetectors ?? []) {
+    if (detectorMatches(detector, toolName, command, serializedInput)) {
+      return {
+        toolName,
+        capability: detector.capability,
+        provider: detector.provider,
+        command,
+        confidence: detector.confidence ?? 0.9,
+      };
+    }
   }
 
   return {
@@ -109,7 +69,7 @@ export function shouldBlockToolCall(
   config: ToolGuardConfig,
   activeContracts: ActiveToolContract[] = [],
 ): ToolGuardDecision {
-  const invocation = normalizeToolInvocation(toolName, input);
+  const invocation = normalizeToolInvocation(toolName, input, config);
 
   if (!config.enabled) {
     return allowDecision(invocation, "tool_guards_disabled");
@@ -162,6 +122,21 @@ export function shouldBlockToolCall(
   return allowDecision(invocation, "no_matching_tool_guard_rule");
 }
 
+function activeContractFromRule(
+  rule: ToolContractRule,
+  originalText: string,
+): ActiveToolContract {
+  return {
+    ruleId: rule.id,
+    capability: rule.capability,
+    requiredProvider: rule.requiredProvider,
+    forbiddenProviders: rule.forbiddenProviders,
+    source: "explicit_user_instruction",
+    severity: rule.severity ?? "error",
+    originalText,
+  };
+}
+
 function evaluateActiveContracts(
   invocation: NormalizedToolInvocation,
   config: ToolGuardConfig,
@@ -209,6 +184,35 @@ function evaluateActiveContracts(
   return undefined;
 }
 
+function detectorMatches(
+  detector: ToolProviderDetector,
+  toolName: string,
+  command: string | undefined,
+  serializedInput: string,
+): boolean {
+  return (
+    patternListMatches(detector.toolNamePatterns, toolName) ||
+    patternListMatches(detector.commandPatterns, command ?? "") ||
+    patternListMatches(detector.inputPatterns, serializedInput)
+  );
+}
+
+function patternListMatches(
+  patterns: string[] | undefined,
+  value: string,
+): boolean {
+  if (!patterns || patterns.length === 0) return false;
+  return patterns.some((pattern) => safeRegexTest(pattern, value));
+}
+
+function safeRegexTest(pattern: string, value: string): boolean {
+  try {
+    return new RegExp(pattern, "i").test(value);
+  } catch {
+    return false;
+  }
+}
+
 function allowDecision(
   invocation: NormalizedToolInvocation,
   reason: string,
@@ -249,36 +253,6 @@ function findStringValue(
     if (found) return found;
   }
   return undefined;
-}
-
-function isAgentBrowserTool(toolName: string, haystack: string): boolean {
-  return (
-    /agent[-_\s]?browser/i.test(toolName) ||
-    /\bagent-browser\b/.test(haystack) ||
-    /\bagent\s+browser\b/.test(haystack) ||
-    /\bmcp_browser_use_cloud_/.test(haystack)
-  );
-}
-
-function isPlaywrightInvocation(haystack: string): boolean {
-  return (
-    /\b(?:npx|pnpm|yarn|bunx|npm\s+exec)\s+playwright\b/.test(haystack) ||
-    /\bplaywright\s+(?:test|show-report|codegen|install|open)\b/.test(
-      haystack,
-    ) ||
-    /@playwright\/test\b/.test(haystack)
-  );
-}
-
-function isPuppeteerInvocation(haystack: string): boolean {
-  return /\bpuppeteer\b/.test(haystack);
-}
-
-function isCypressInvocation(haystack: string): boolean {
-  return (
-    /\b(?:npx|pnpm|yarn|bunx|npm\s+exec)\s+cypress\b/.test(haystack) ||
-    /\bcypress\s+(?:run|open)\b/.test(haystack)
-  );
 }
 
 function humanCapability(capability: string): string {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -7,6 +7,54 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import extension from "../../.pi/extensions/model-guardrails/index.ts";
 
 type Handler = (event: unknown, ctx: unknown) => unknown | Promise<unknown>;
+
+async function writeGuardrailsConfig(cwd: string): Promise<void> {
+  await mkdir(join(cwd, ".pi"), { recursive: true });
+  await writeFile(
+    join(cwd, ".pi", "guardrails.json"),
+    JSON.stringify({
+      toolGuards: {
+        enabled: true,
+        explicitToolContractsEnabled: true,
+        providerMismatchMode: "deny",
+        toolContracts: [
+          {
+            id: "tool.browser.required-provider.agent-browser",
+            capability: "browser_automation",
+            requiredProvider: "agent-browser",
+            forbiddenProviders: ["playwright", "puppeteer", "cypress"],
+            triggerPatterns: [
+              "\\b(?:use|using|with|via|prefer|preferred|require|required|requested|explicitly\\s+requested)\\s+(?:the\\s+)?agent[-\\s]?browser\\b",
+              "\\bagent[-\\s]?browser\\b[^.\\n]{0,80}\\b(?:required|requested|explicit|instead|must|only)\\b",
+            ],
+            severity: "error",
+          },
+        ],
+        providerDetectors: [
+          {
+            provider: "agent-browser",
+            capability: "browser_automation",
+            toolNamePatterns: ["agent[-_\\s]?browser"],
+            commandPatterns: ["\\bagent-browser\\b"],
+            inputPatterns: ["\\bmcp_browser_use_cloud_"],
+            confidence: 0.98,
+          },
+          {
+            provider: "playwright",
+            capability: "browser_automation",
+            commandPatterns: [
+              "\\b(?:npx|pnpm|yarn|bunx|npm\\s+exec)\\s+playwright\\b",
+              "\\bplaywright\\s+(?:test|show-report|codegen|install|open)\\b",
+              "@playwright/test\\b",
+            ],
+            confidence: 0.98,
+          },
+        ],
+      },
+    }),
+    "utf8",
+  );
+}
 
 function createHarness() {
   const handlers = new Map<string, Handler[]>();
@@ -53,6 +101,7 @@ function createHarness() {
 
 test("e2e blocks Playwright tool call after explicit agent-browser request", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-e2e-contract-"));
+  await writeGuardrailsConfig(cwd);
   const harness = createHarness();
 
   await harness.emit(
@@ -117,6 +166,7 @@ test("e2e blocks Playwright tool call after explicit agent-browser request", asy
 
 test("e2e allows agent-browser tool call after explicit agent-browser request", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-e2e-contract-"));
+  await writeGuardrailsConfig(cwd);
   const harness = createHarness();
 
   await harness.emit(

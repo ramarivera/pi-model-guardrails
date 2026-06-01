@@ -173,7 +173,10 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
             content,
           });
 
-          const extractedContracts = extractToolContracts(content);
+          const extractedContracts = extractToolContracts(
+            content,
+            config.toolGuards,
+          );
           if (extractedContracts.length > 0) {
             activeToolContracts = mergeToolContracts(
               activeToolContracts,
@@ -406,16 +409,11 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
           return;
         }
 
-        const modelId = modelIdentifier(ctx);
-        const modelGuarded = shouldGuardrailModel(modelId, config);
-        await telemetry.logEvent("tool_call_model_filter_checked", {
+        await telemetry.logEvent("tool_guard_model_filter_bypassed", {
+          reason: "deterministic_tool_guards_apply_to_all_models",
           toolName: event.toolName,
-          modelId,
-          guarded: modelGuarded,
+          modelId: modelIdentifier(ctx),
         });
-        if (!modelGuarded) {
-          return;
-        }
 
         const blockResult = shouldBlockToolCall(
           event.toolName,
