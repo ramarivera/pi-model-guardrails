@@ -143,7 +143,6 @@ export function writeTelemetryEvent(
       "guardrails.trace_id": event.traceId,
       "guardrails.log_file": logFile,
     });
-    yield* Effect.logInfo("guardrails telemetry", event);
     yield* Effect.tryPromise({
       try: async () => {
         await mkdir(dirname(logFile), { recursive: true });

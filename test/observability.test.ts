@@ -67,6 +67,46 @@ test("telemetry records span errors before rethrowing", async () => {
   assert.equal(events[1].error.message, "analysis exploded");
 });
 
+test("telemetry writes JSONL without logging successful events to console", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-guardrails-observe-quiet-"));
+  const telemetry = createTelemetry(dir, {
+    enabled: true,
+    logFile: "events.jsonl",
+  });
+  const calls: string[] = [];
+  const originalLog = console.log;
+  const originalInfo = console.info;
+  const originalWarn = console.warn;
+
+  console.log = (...args: unknown[]) => {
+    calls.push(`log:${args.join(" ")}`);
+  };
+  console.info = (...args: unknown[]) => {
+    calls.push(`info:${args.join(" ")}`);
+  };
+  console.warn = (...args: unknown[]) => {
+    calls.push(`warn:${args.join(" ")}`);
+  };
+
+  try {
+    await telemetry.logEvent("quiet_event", { toolName: "bash" });
+  } finally {
+    console.log = originalLog;
+    console.info = originalInfo;
+    console.warn = originalWarn;
+  }
+
+  assert.deepEqual(calls, []);
+
+  const events = (await readFile(join(dir, "events.jsonl"), "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].name, "quiet_event");
+});
+
 test("relative telemetry paths resolve from cwd", () => {
   assert.equal(
     resolveLogFile("/tmp/example", ".pi/model-guardrails/events.jsonl"),
