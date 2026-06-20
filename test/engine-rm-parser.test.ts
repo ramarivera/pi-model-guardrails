@@ -303,7 +303,10 @@ test("chain: NEWLINE-separated propagation then delete is Critical (FN fix)", ()
     ["cp -a /etc/ssh /tmp/x\r\nrm -rf /tmp/x", "cp-sensitive-then-delete"],
     ["cp -a /etc/ssh /tmp/x\n  rm -rf /tmp/x", "cp-sensitive-then-delete"],
     ["ln -s /etc /tmp/x\nrm -rf /tmp/x/.", "ln-symlink-sensitive-then-delete"],
-    ["rsync -a /etc/ /tmp/dest/\nrm -rf /tmp/dest", "rsync-sensitive-then-delete"],
+    [
+      "rsync -a /etc/ /tmp/dest/\nrm -rf /tmp/dest",
+      "rsync-sensitive-then-delete",
+    ],
   ];
   for (const [cmd, rule] of cases) {
     assert.equal(chainTag(cmd), `deny:${rule}:critical`, JSON.stringify(cmd));

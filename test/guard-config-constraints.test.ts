@@ -11,7 +11,11 @@ import { loadGuardConfig } from "../src/config.ts";
 async function writeProjectConfig(body: unknown): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "pi-guardrails-gc-"));
   await mkdir(join(dir, ".pi"));
-  await writeFile(join(dir, ".pi/guardrails.json"), JSON.stringify(body), "utf8");
+  await writeFile(
+    join(dir, ".pi/guardrails.json"),
+    JSON.stringify(body),
+    "utf8",
+  );
   return dir;
 }
 

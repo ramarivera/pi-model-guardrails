@@ -159,7 +159,7 @@ test("ReDoS guard: inputMaxLength bites BEFORE budget (fail-open by default)", (
     ],
   };
   const reg = buildRegistry([evil]);
-  const long = "a".repeat(5000) + "!"; // 5001 chars, over an 8-char cap
+  const long = `${"a".repeat(5000)}!`; // 5001 chars, over an 8-char cap
   const d = evaluateCommand(long, reg, { inputMaxLength: 8 });
   // Cap bit at the top of evaluateCommand => allow (fail-open), never ran regex.
   assert.equal(d.decision, "allow");
