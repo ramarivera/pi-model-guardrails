@@ -477,6 +477,12 @@ export function withTimeout<T>(
   const timeout = new Promise<never>((_resolve, reject) => {
     timer = setTimeout(() => reject(new Error(message)), ms);
   });
+  // If the timeout wins the race, the underlying `promise` may still reject
+  // LATER (a slow model erroring after we gave up). Without a handler that is an
+  // unhandled rejection that can crash the host process. Attach a no-op catch so
+  // a post-timeout rejection is swallowed — the grade result is already decided
+  // by the race.
+  promise.catch(() => {});
   return Promise.race([promise, timeout]).finally(() => {
     if (timer !== undefined) clearTimeout(timer);
   }) as Promise<T>;

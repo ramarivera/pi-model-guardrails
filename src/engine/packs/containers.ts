@@ -407,43 +407,43 @@ const safePatterns: SafeRule[] = [
   // ===== containers.docker safe patterns =====
   {
     name: "docker-ps",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ps(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ps(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-images",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-logs",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-inspect",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-build",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-pull",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-run",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-exec",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-stats",
-    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
   {
     name: "docker-dry-run",
-    re: /^\s*docker\b(?:\s+[^;&|`$()]*)*--dry-run(?:\s+[^;&|`$()]*)*$/,
+    re: /^\s*docker\b(?:\s+[^;&|`$()\s]+)*\s+--dry-run(?:\s+[^;&|`$()\s]+)*\s*$/,
   },
 
   // ===== containers.compose safe patterns =====
