@@ -66,7 +66,7 @@ const DEFAULT_LIMITS: ExtractionLimits = {
 const HEREDOC_TRIGGER_SOURCES: Array<{ src: string; flags: string }> = [
   // Here-string operator (<<<). Tier 1 must over-trigger; the scanner also
   // catches this, but DCG lists it explicitly.
-  { src: String.raw`<<<`, flags: "" },
+  { src: "<<<", flags: "" },
   // Python inline execution.
   {
     src: String.raw`\bpython[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[ce][A-Za-z]*(?:\s|['"]|$)`,
@@ -392,7 +392,7 @@ function isBinaryContent(content: string): boolean {
   let total = 0;
   for (const ch of content) {
     total += 1;
-    const code = ch.codePointAt(0)!;
+    const code = ch.codePointAt(0) ?? 0;
     if (code === 0) {
       nullBytes += 1;
     }

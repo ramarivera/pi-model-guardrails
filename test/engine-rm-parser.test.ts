@@ -294,6 +294,37 @@ test("chain: sensitive cp/ln/rsync propagation then delete is Critical", () => {
   }
 });
 
+test("chain: NEWLINE-separated propagation then delete is Critical (FN fix)", () => {
+  // DCG's upstream separator alternation is (?:&&|;|\|\|) — it MISSES a newline
+  // separator, a real false negative. A newline is a statement separator like
+  // `;`, so these must deny just like the && forms above.
+  const cases: [string, string][] = [
+    ["cp -a /etc/ssh /tmp/x\nrm -rf /tmp/x", "cp-sensitive-then-delete"],
+    ["cp -a /etc/ssh /tmp/x\r\nrm -rf /tmp/x", "cp-sensitive-then-delete"],
+    ["cp -a /etc/ssh /tmp/x\n  rm -rf /tmp/x", "cp-sensitive-then-delete"],
+    ["ln -s /etc /tmp/x\nrm -rf /tmp/x/.", "ln-symlink-sensitive-then-delete"],
+    [
+      "rsync -a /etc/ /tmp/dest/\nrm -rf /tmp/dest",
+      "rsync-sensitive-then-delete",
+    ],
+  ];
+  for (const [cmd, rule] of cases) {
+    assert.equal(chainTag(cmd), `deny:${rule}:critical`, JSON.stringify(cmd));
+  }
+  // Negative control: a benign newline-separated pair must NOT deny.
+  assert.equal(
+    chainTag("cp -a /tmp/a /tmp/b\nls /tmp").startsWith("deny:"),
+    false,
+  );
+  // A BARE carriage return is NOT a bash statement separator (only \n / \r\n
+  // are), so `cp …/tmp/x\rrm -rf /tmp/x` is one word to bash — no second
+  // command — and must NOT be flagged as propagation (coderabbit/augment).
+  assert.equal(
+    chainTag("cp -a /etc/ssh /tmp/x\rrm -rf /tmp/x").startsWith("deny:"),
+    false,
+  );
+});
+
 test("chain: propagation WITHOUT delete is not blocked", () => {
   // DCG sensitive_propagation_without_delete_is_allowed
   for (const cmd of [

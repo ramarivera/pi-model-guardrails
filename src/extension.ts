@@ -31,6 +31,7 @@ import {
   makeCompleter,
 } from "./grade.ts";
 import { type GuardDeps, guardToolCall } from "./guard.ts";
+import { shouldGuardrailModel } from "./model-filter.ts";
 import {
   createNoopTelemetry,
   type GuardrailsTelemetry,
@@ -203,6 +204,26 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
         await telemetry.logEvent("tool_call_passthrough", {
           toolName: tn,
           reason: "non_bash_tool_passthrough",
+        });
+        return;
+      }
+
+      // Model gating: scope the guard to the configured models. Read the ACTIVE
+      // model fresh each call so a mid-session model switch is honored. When the
+      // current model is out of guardrail scope (blacklisted, or a whitelist is
+      // set and it is not on it), the guard stands down entirely — allow and
+      // leave the deviation state frozen (a later switch back to a guarded model
+      // resumes from the persisted state). Default config guards every model.
+      const activeModelId = ctx.model?.id;
+      if (
+        activeModelId !== undefined &&
+        (modelWhitelist !== undefined || modelBlacklist !== undefined) &&
+        !shouldGuardrailModel(activeModelId, { modelWhitelist, modelBlacklist })
+      ) {
+        await telemetry.logEvent("tool_call_model_ungoverned", {
+          toolName: "bash",
+          modelId: activeModelId ?? "(unknown)",
+          reason: "model_out_of_guardrail_scope",
         });
         return;
       }

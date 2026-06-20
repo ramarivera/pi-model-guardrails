@@ -12,6 +12,7 @@ import { packageManagersPack } from "./engine/packs/package-managers.ts";
 import { platformPack } from "./engine/packs/platform.ts";
 import { remotePack } from "./engine/packs/remote.ts";
 import { systemPack } from "./engine/packs/system.ts";
+import { validateRegexSafety } from "./engine/regex-safety.ts";
 import { buildRegistry, type Registry } from "./engine/registry.ts";
 import type { EvaluateOptions } from "./engine/types.ts";
 import {
@@ -274,6 +275,29 @@ function toPolicyConfig(wire: PolicyConfigFile | undefined): PolicyConfig {
   };
 }
 
+/**
+ * Validate an untrusted constraint `detect.regex` AT LOAD. A non-string is
+ * dropped silently (no detector). A ReDoS-prone / non-compiling pattern is
+ * dropped with a LOUD warning — refusing it here is the only real defense, since
+ * a catastrophic regex can block synchronously before any runtime budget bites.
+ */
+function safeConstraintRegex(
+  regex: unknown,
+  constraintId: string,
+): string | undefined {
+  if (typeof regex !== "string") return undefined;
+  const verdict = validateRegexSafety(regex);
+  if (!verdict.ok) {
+    console.warn(
+      `[guardrails] constraint "${constraintId}" detect.regex REJECTED at load ` +
+        `(${verdict.reason}). The constraint keeps any ruleIds detector but its ` +
+        "regex is dropped. Simplify the pattern to re-enable it.",
+    );
+    return undefined;
+  }
+  return regex;
+}
+
 function toConstraints(raw: unknown[] | undefined): Constraint[] {
   if (!Array.isArray(raw)) return [];
   const severities = new Set<ConstraintSeverity>([
@@ -316,7 +340,7 @@ function toConstraints(raw: unknown[] | undefined): Constraint[] {
             ruleIds: Array.isArray(detect.ruleIds)
               ? detect.ruleIds.filter((r): r is string => typeof r === "string")
               : undefined,
-            regex: typeof detect.regex === "string" ? detect.regex : undefined,
+            regex: safeConstraintRegex(detect.regex, c.id),
           }
         : undefined,
     });
