@@ -614,7 +614,11 @@ function parseRmSegment(
       continue;
     }
 
-    optionsEnded = true;
+    // NOTE: do NOT set optionsEnded here. GNU getopt permutes options past
+    // operands by default, so `rm /etc -rf` is equivalent to `rm -rf /etc`.
+    // Only an explicit `--` terminator ends option scanning. (DIVERGES from
+    // DCG, which ended options at the first path and missed flags-after-path —
+    // a reviewed root/home-deletion false negative.)
     const { quote, unquoted } = stripOuterQuotes(text);
     paths.push({ unquoted, quote, start: token.start, end: token.end });
   }

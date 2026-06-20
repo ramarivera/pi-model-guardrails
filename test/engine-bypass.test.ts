@@ -129,3 +129,12 @@ test("rm with mixed short+long recursive/force flags is caught on root/home", ()
   // mixed flags on a temp path remain safe (no over-block)
   expectAllow("rm -r --force /tmp/x");
 });
+
+// HIGH (FN, dangerous): flags AFTER the path (GNU getopt permutes operands).
+test("rm with flags after the path is caught on root/home", () => {
+  expectDeny("rm /etc -rf");
+  expectDeny("rm /home/me/proj -rf");
+  expectDeny("rm / -rf");
+  // flags-after-path on a temp path stays safe
+  expectAllow("rm /tmp/x -rf");
+});
