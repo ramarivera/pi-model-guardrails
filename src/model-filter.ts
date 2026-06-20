@@ -8,24 +8,22 @@ export function shouldGuardrailModel(
     return false;
   }
 
-  // Blacklist takes precedence
-  if (config.modelBlacklist && config.modelBlacklist.length > 0) {
-    if (
-      config.modelBlacklist.some(
-        (m) => modelId.includes(m) || m.includes(modelId),
-      )
-    ) {
-      return false;
-    }
+  // Exact-id match only. v0.1.7's loose substring match
+  // (modelId.includes(m) || m.includes(modelId)) caused both false matches
+  // (e.g. "gpt-5" matching "gpt-5.2", "glm-5.1" matching "glm-5.2") and
+  // accidental shielding. The guard must be unambiguous about which model id a
+  // rule applies to.
+
+  // Blacklist takes precedence.
+  if (config.modelBlacklist && config.modelBlacklist.includes(modelId)) {
+    return false;
   }
 
-  // If whitelist is specified, only guardrail whitelisted models
+  // If a whitelist is specified, only guardrail models on it.
   if (config.modelWhitelist && config.modelWhitelist.length > 0) {
-    return config.modelWhitelist.some(
-      (m) => modelId.includes(m) || m.includes(modelId),
-    );
+    return config.modelWhitelist.includes(modelId);
   }
 
-  // If no whitelist, guardrail all models (except blacklisted)
+  // No whitelist => guardrail all models (except blacklisted).
   return true;
 }

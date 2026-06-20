@@ -41,7 +41,16 @@ export interface GuardrailsTelemetry {
     tags: GuardrailsTelemetryTags | undefined,
     run: () => A | Promise<A>,
   ): Promise<A>;
+  /**
+   * Read back the most recent telemetry events from an in-memory ring buffer.
+   * This is the read path the v0.1.7 telemetry lacked (it was write-only). The
+   * deviation state machine uses it for decision traces + back-on-track checks.
+   */
+  recent(limit?: number): GuardrailsTelemetryEvent[];
 }
+
+/** Bounded in-memory event history kept per telemetry instance. */
+const RING_BUFFER_SIZE = 500;
 
 export function createNoopTelemetry(): GuardrailsTelemetry {
   const traceId = randomUUID();
@@ -52,6 +61,7 @@ export function createNoopTelemetry(): GuardrailsTelemetry {
     async runSpan(_name, _tags, run) {
       return await run();
     },
+    recent: () => [],
   };
 }
 
@@ -67,20 +77,25 @@ export function createTelemetry(
     return createNoopTelemetry();
   }
 
-  const write = (
+  // In-memory ring buffer so the guard can READ BACK recent events (decision
+  // traces, state transitions). v0.1.7's telemetry was write-only — appended to
+  // a JSONL nothing read — which is why it had no observable value. Bounded;
+  // oldest entries drop.
+  const ring: GuardrailsTelemetryEvent[] = [];
+  const record = async (
     event: Omit<GuardrailsTelemetryEvent, "timestamp" | "traceId">,
-  ) =>
-    writeTelemetryEvent(logFile, {
+  ): Promise<void> => {
+    const full: GuardrailsTelemetryEvent = {
       ...event,
       timestamp: new Date().toISOString(),
       traceId,
-    });
-
-  const safeWrite = async (
-    event: Omit<GuardrailsTelemetryEvent, "timestamp" | "traceId">,
-  ): Promise<void> => {
+    };
+    ring.push(full);
+    if (ring.length > RING_BUFFER_SIZE) {
+      ring.splice(0, ring.length - RING_BUFFER_SIZE);
+    }
     await Effect.runPromise(
-      write(event).pipe(
+      writeTelemetryEvent(logFile, full).pipe(
         Effect.catchAll((error) =>
           Effect.sync(() => {
             console.warn("[guardrails] telemetry write failed:", error);
@@ -94,13 +109,16 @@ export function createTelemetry(
     traceId,
     enabled,
     logFile,
+    recent(limit?: number) {
+      return limit && limit > 0 ? ring.slice(-limit) : ring.slice();
+    },
     async logEvent(name, tags) {
-      await safeWrite({ kind: "event", name, tags: sanitizeTags(tags) });
+      await record({ kind: "event", name, tags: sanitizeTags(tags) });
     },
     async runSpan(name, tags, run) {
       const spanId = randomUUID();
       const startedAt = performance.now();
-      await safeWrite({
+      await record({
         kind: "span_start",
         name,
         spanId,
@@ -109,7 +127,7 @@ export function createTelemetry(
 
       try {
         const result = await run();
-        await safeWrite({
+        await record({
           kind: "span_end",
           name,
           spanId,
@@ -118,7 +136,7 @@ export function createTelemetry(
         });
         return result;
       } catch (error) {
-        await safeWrite({
+        await record({
           kind: "span_error",
           name,
           spanId,
