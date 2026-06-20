@@ -197,7 +197,6 @@ function detectConstraint(
   constraints: Constraint[],
 ): Constraint | undefined {
   const ruleId = engineDecision.ruleId;
-  let weakest: Constraint | undefined;
   let strongest: Constraint | undefined;
 
   for (const c of constraints) {
@@ -209,16 +208,17 @@ function detectConstraint(
     if (!byRuleId && !byRegex) continue;
 
     // Strictest-wins (design): if multiple constraints detect, prefer the
-    // strongest severity so the floor/arming reflects the worst case.
+    // strongest severity so the floor/arming reflects the worst case. The first
+    // match always sets `strongest`, so it is defined whenever any constraint
+    // matched (no separate "weakest" fallback needed).
     if (
       strongest === undefined ||
       severityRank(c.severity) > severityRank(strongest.severity)
     ) {
       strongest = c;
     }
-    weakest ??= c;
   }
-  return strongest ?? weakest;
+  return strongest;
 }
 
 /**

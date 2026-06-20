@@ -189,11 +189,11 @@ function toGraderConfig(wire: GraderConfigFile | undefined): GraderConfig {
     enabled: boolOr(wire.enabled, base.enabled),
     model:
       typeof wire.model === "string" && wire.model.trim()
-        ? wire.model
+        ? wire.model.trim()
         : base.model,
     fallbackModel:
       typeof wire.fallbackModel === "string" && wire.fallbackModel.trim()
-        ? wire.fallbackModel
+        ? wire.fallbackModel.trim()
         : undefined,
     baseUrl,
     apiKey,
