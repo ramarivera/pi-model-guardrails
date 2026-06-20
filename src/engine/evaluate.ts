@@ -130,6 +130,32 @@ export function evaluateCommand(
     return allowDecision("empty");
   }
 
+  // Crash-safety: a guard must NEVER throw in the hot path. Normalization walks
+  // nested subshells recursively and can, on pathologically-nested input (with
+  // a raised inputMaxLength), hit a stack overflow. Any unexpected throw
+  // degrades to the engine's standard polarity — fail-open in a clear state,
+  // fail-closed when armed — rather than propagating and breaking the tool call.
+  try {
+    return evaluateInner(command, registry, resolved);
+  } catch {
+    if (resolved.failClosed) {
+      return {
+        decision: "deny",
+        blocked: true,
+        severity: "critical",
+        reason: "command guard failed closed (evaluation error)",
+        confidence: 1,
+      };
+    }
+    return allowDecision("evaluation_error");
+  }
+}
+
+function evaluateInner(
+  command: string,
+  registry: Registry,
+  resolved: Required<EvaluateOptions>,
+): EngineDecision {
   // (3) Normalize into classified segments. Also compute the wrapper-stripped
   // whole command (DCG's `command_for_packs = normalize_command(strip_wrapper_
   // prefixes(command))`) — this is what the matchers run against, so a leading

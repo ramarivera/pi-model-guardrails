@@ -130,6 +130,18 @@ test("rm with mixed short+long recursive/force flags is caught on root/home", ()
   expectAllow("rm -r --force /tmp/x");
 });
 
+// MEDIUM (crash-redos): pathologically-nested subshells must not throw — a
+// guard that crashes in the hot path could fail the tool call uncontrolled.
+test("deeply nested subshells degrade gracefully instead of crashing", () => {
+  const nested = `echo ${"$(".repeat(9000)}rm -rf /${")".repeat(9000)}`;
+  // raised cap so normalization is actually attempted (default cap would bail first)
+  const d = evaluateCommand(nested, registry, { inputMaxLength: 1_000_000 });
+  assert.ok(
+    ["allow", "deny", "warn", "log"].includes(d.decision),
+    `expected a decision, got ${JSON.stringify(d)}`,
+  );
+});
+
 // HIGH (FN, dangerous): flags AFTER the path (GNU getopt permutes operands).
 test("rm with flags after the path is caught on root/home", () => {
   expectDeny("rm /etc -rf");
