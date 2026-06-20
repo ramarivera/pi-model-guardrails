@@ -261,3 +261,31 @@ test("length cap bites before budget: oversized input trips guard", () => {
   assert.equal(d?.decision, "deny");
   assert.equal(d?.severity, "critical");
 });
+
+test("fail-closed: a tripped safe rule is NOT masked by a later safe match (coderabbit)", () => {
+  // A catastrophic safe regex (trips the per-match budget) is declared BEFORE a
+  // match-all safe rule. In fail-closed mode the guard trip must win (deny) and
+  // not be masked by the later safe match — which would wrongly whitelist a
+  // degraded/armed session's input.
+  const pack: Pack = {
+    id: "x.test",
+    name: "t",
+    keywords: ["z"],
+    safePatterns: [
+      { name: "slow", re: /(a+)+$/ }, // catastrophic on the input below
+      { name: "trap-safe", re: /z/ }, // would whitelist the input if reached
+    ],
+    destructivePatterns: [
+      { name: "danger", re: /z/, severity: "critical", reason: "danger" },
+    ],
+  };
+  const cmd = `${"a".repeat(20)}z`; // forces catastrophic backtracking on `slow`
+  const d = matchPack(
+    pack,
+    segs(cmd),
+    cmd,
+    opts({ failClosed: true, perMatchBudgetMs: 1, inputMaxLength: 10000 }),
+  );
+  assert.ok(d, "must return a decision");
+  assert.equal(d.decision, "deny", "guard trip denies (not whitelisted)");
+});

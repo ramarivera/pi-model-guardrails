@@ -51,11 +51,12 @@ test("kubectl: global flags do not bypass", () => {
     undefined,
     "delete-all",
   );
-  // delete-all fires before delete-all-namespaces (DCG first-match within pack).
+  // delete-all-namespaces (CRITICAL) is declared before the broad delete-all
+  // (HIGH), so `--all-namespaces` is not downgraded (coderabbit fix).
   assertBlocks(
     "kubectl --context prod delete pods --all-namespaces -l app=legacy",
-    undefined,
-    "delete-all",
+    "critical",
+    "delete-all-namespaces",
   );
   assertBlocks(
     "kubectl --context prod drain node-1 --ignore-daemonsets",
@@ -77,6 +78,23 @@ test("kubectl: global flags do not bypass", () => {
     undefined,
     "apply-force",
   );
+});
+
+test("kubectl: critical delete-variants are not shadowed by broad rules (coderabbit ordering)", () => {
+  // First-match-wins per pack: a critical variant must be declared before the
+  // broad high rule that would otherwise match its prefix and downgrade it.
+  // delete deployment + force/grace => delete-force (critical), NOT delete-workload.
+  assertBlocks(
+    "kubectl delete deployment web --force --grace-period=0",
+    "critical",
+    "delete-force",
+  );
+  // delete pvc --all => delete-pvc (critical), NOT delete-all (high).
+  assertBlocks("kubectl delete pvc data --all", "critical", "delete-pvc");
+  // delete pv --all => delete-pv (critical), NOT delete-all.
+  assertBlocks("kubectl delete pv vol --all", "critical", "delete-pv");
+  // plain --all (no namespaces / resource not pvc/pv) stays high (delete-all).
+  assertBlocks("kubectl delete pods --all", "high", "delete-all");
 });
 
 test("kubectl: safe positional reads allowed after global flags", () => {
