@@ -316,6 +316,13 @@ test("chain: NEWLINE-separated propagation then delete is Critical (FN fix)", ()
     chainTag("cp -a /tmp/a /tmp/b\nls /tmp").startsWith("deny:"),
     false,
   );
+  // A BARE carriage return is NOT a bash statement separator (only \n / \r\n
+  // are), so `cp …/tmp/x\rrm -rf /tmp/x` is one word to bash — no second
+  // command — and must NOT be flagged as propagation (coderabbit/augment).
+  assert.equal(
+    chainTag("cp -a /etc/ssh /tmp/x\rrm -rf /tmp/x").startsWith("deny:"),
+    false,
+  );
 });
 
 test("chain: propagation WITHOUT delete is not blocked", () => {

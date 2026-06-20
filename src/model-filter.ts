@@ -10,6 +10,14 @@ export interface ModelGatingLists {
  * This scopes WHICH models get guarded (not which models may run): a blacklisted
  * model is left ungoverned; with a whitelist, ONLY whitelisted models are
  * guarded; with neither, every model is guarded. Exact-id match only.
+ *
+ * ⚠️ CONTRACT for an UNKNOWN model (`modelId === undefined`): this returns
+ * `false` ("would-not-guardrail"). This is NOT the same as "stand the guard
+ * down for an unknown model" — callers must FAIL SAFE on an unknown model. The
+ * extension does this: it only stands the guard down when the model id is KNOWN
+ * and explicitly out of scope (`activeModelId !== undefined && !shouldGuardrail
+ * Model(...)`), so an unknown model stays guarded. Do not call this with an
+ * undefined id and treat a `false` as "skip the guard".
  */
 export function shouldGuardrailModel(
   modelId: string | undefined,

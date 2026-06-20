@@ -726,20 +726,21 @@ function parseRmSegment(
 // atomic constructs are used. See portNotes.
 //
 // DELIBERATE DIVERGENCE from DCG: the copy→delete separator alternation is
-// `(?:&&|;|\|\||[\r\n]+)` — DCG's upstream is `(?:&&|;|\|\|)`, which MISSES a
+// `(?:&&|;|\|\||(?:\r?\n)+)` — DCG's upstream is `(?:&&|;|\|\|)`, which MISSES a
 // NEWLINE-separated chain (`cp -a /etc/ssh /tmp/x\nrm -rf /tmp/x`) — a real
 // false negative, since a newline is a statement separator exactly like `;`.
-// Adding `[\r\n]+` closes that bypass (covers \n, \r\n, \r). The surrounding
-// `[^|;&]*` walkers already allow newlines, so no other change is needed.
+// `(?:\r?\n)+` covers \n and \r\n (CRLF) but NOT a bare `\r`, which bash does
+// NOT treat as a statement separator (coderabbit/augment consistency). The
+// surrounding `[^|;&]*` walkers already allow newlines, so no other change.
 
 const CP_SENSITIVE_THEN_DELETE_RE =
-  /\bcp\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\||[\r\n]+)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
+  /\bcp\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\||(?:\r?\n)+)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
 
 const LN_SYMLINK_SENSITIVE_THEN_DELETE_RE =
-  /\bln\b[^|;&]*\s-[A-Za-z]*s[A-Za-z]*[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\||[\r\n]+)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
+  /\bln\b[^|;&]*\s-[A-Za-z]*s[A-Za-z]*[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\||(?:\r?\n)+)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
 
 const RSYNC_SENSITIVE_THEN_DELETE_RE =
-  /\brsync\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\||[\r\n]+)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
+  /\brsync\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\||(?:\r?\n)+)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
 
 const PROPAGATION_RULES: ReadonlyArray<{
   name: string;
