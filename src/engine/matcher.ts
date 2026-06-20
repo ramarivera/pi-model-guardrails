@@ -190,6 +190,21 @@ export function matchPack(
   opts: Required<EvaluateOptions>,
 ): EngineDecision | undefined {
   // ----- 1. Imperative pre-checks (rm/cp/ln/rsync argv parsers, etc.) -----
+  // A deny/warn/log result is AUTHORITATIVE and returns immediately. An ALLOW
+  // result is ADVISORY only: the rm/cp/ln/rsync argv parser ran against the
+  // whole command and judged its own op safe, but it must NOT short-circuit the
+  // pack — a destructive sibling (mv/find/dd/…) or cp/ln/rsync sensitive-then-
+  // delete propagation in the SAME compound command must still be evaluated by
+  // the regex pass below. (The original short-circuit-on-Allow let
+  // `mv /etc /tmp/x && rm -rf /tmp/x` through — DCG's own canonical bypass.)
+  // The regex pass has its own temp-safe `^rm…` safe patterns that allow a
+  // genuinely-safe lone rm, so dropping the Allow here does not over-block it.
+  // Pass 1: a deny/warn/log is AUTHORITATIVE (return now). Also learn whether
+  // the imperative ALLOWS the full command — removalCheck returns allow only
+  // when the rm op is temp-safe AND there is no cp/ln/rsync propagation, so
+  // this is false in the propagation case (keeping the whole-command scan below
+  // so the propagation pattern can fire).
+  let imperativeAllowsFull = false;
   if (pack.imperative && pack.imperative.length > 0) {
     for (const seg of segments) {
       for (const check of pack.imperative) {
@@ -201,27 +216,70 @@ export function matchPack(
           if (opts.failClosed) return failClosedDecision(pack, seg.raw);
           decision = undefined;
         }
-        if (decision !== undefined) {
-          // Stamp pack identity / decision shape if the check left them blank.
-          return {
-            ...decision,
-            packId: decision.packId ?? pack.id,
-            ruleId:
-              decision.ruleId ??
-              (decision.ruleName ? ruleId(pack.id, decision.ruleName) : undefined),
-            blocked: decision.blocked ?? decision.decision === "deny",
-            segment: decision.segment ?? seg.raw,
-          };
+        if (decision === undefined) continue;
+        if (decision.decision === "allow") {
+          imperativeAllowsFull = true;
+          continue;
+        }
+        // deny / warn / log => authoritative; stamp identity and return.
+        return {
+          ...decision,
+          packId: decision.packId ?? pack.id,
+          ruleId:
+            decision.ruleId ??
+            (decision.ruleName ? ruleId(pack.id, decision.ruleName) : undefined),
+          blocked: decision.blocked ?? decision.decision === "deny",
+          segment: decision.segment ?? seg.raw,
+        };
+      }
+    }
+  }
+
+  // Pass 2: exonerate a segment iff the imperative allows it IN ISOLATION
+  // (it is itself a temp-safe rm/cp/ln/rsync op) AND it allows the full command
+  // (no propagation/sibling makes it dangerous). This drops a temp-safe rm from
+  // the regex pass — whose rm-rf-root-home rule is broad (matches any `rm -rf
+  // /path`) and would false-positive on temp paths inside a compound — WITHOUT
+  // swallowing a destructive sibling (mv/find/dd), which is not exonerated and
+  // is still scanned below. (`mv /etc /tmp/x && rm -rf /tmp/x` => mv still
+  // fires; `cp -al /tmp/a /tmp/b && rm -rf /tmp/b` => no false positive.)
+  const exonerated = new Set<SegmentContext>();
+  if (imperativeAllowsFull && pack.imperative && pack.imperative.length > 0) {
+    for (const seg of segments) {
+      for (const check of pack.imperative) {
+        let isolated: EngineDecision | undefined;
+        try {
+          isolated = check(seg, seg.normalized);
+        } catch {
+          isolated = undefined;
+        }
+        if (isolated?.decision === "allow") {
+          exonerated.add(seg);
+          break;
         }
       }
     }
   }
 
-  // The texts we run patterns against: every segment's normalized form, plus
-  // the whole command (so patterns that legitimately span a pipeline still
-  // fire). DCG checks each segment then the full command once.
-  const segmentTexts = segments.map((s) => s.normalized);
-  const wholeTexts = dedupePreserveOrder([...segmentTexts, fullCommand]);
+  // The texts we run patterns against: every NON-exonerated segment's normalized
+  // form, plus the whole command (so patterns that legitimately span a pipeline
+  // — e.g. cp/ln/rsync sensitive-then-delete propagation — still fire). DCG
+  // checks each segment then the full command once. If any segment was
+  // imperatively exonerated, we omit the whole-command text: it still contains
+  // that exonerated segment, which would otherwise be re-flagged by an
+  // unanchored rm pattern, reintroducing the false positive the imperative
+  // parser exists to prevent.
+  const segmentTexts = segments
+    .filter((s) => !exonerated.has(s))
+    .map((s) => s.normalized);
+  // Omit the whole-command text when a segment was exonerated: it still contains
+  // that temp-safe rm, which the broad rm-rf-root-home rule would otherwise
+  // re-flag. The propagation case never reaches here (imperativeAllowsFull is
+  // false then), so dropping the whole-command text loses no real coverage.
+  const wholeTexts =
+    exonerated.size > 0
+      ? dedupePreserveOrder(segmentTexts)
+      : dedupePreserveOrder([...segmentTexts, fullCommand]);
 
   // ----- 2+3. Per-TEXT safe-then-destructive (the compound-command bypass guard) -----
   // CRITICAL: a safe match shields only the SINGLE text it matched, never the

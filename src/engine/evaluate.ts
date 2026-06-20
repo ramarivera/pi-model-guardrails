@@ -19,7 +19,7 @@
 //   - src/packs/mod.rs : Severity::default_mode, PackRegistry::check_command
 
 import { matchPack } from "./matcher.ts";
-import { normalizeCommand } from "./normalize.ts";
+import { normalizeCommand, stripWrapperPrefixes } from "./normalize.ts";
 import type { Registry } from "./registry.ts";
 import type {
   DecisionMode,
@@ -130,11 +130,26 @@ export function evaluateCommand(
     return allowDecision("empty");
   }
 
-  // (3) Normalize into classified segments.
+  // (3) Normalize into classified segments. Also compute the wrapper-stripped
+  // whole command (DCG's `command_for_packs = normalize_command(strip_wrapper_
+  // prefixes(command))`) — this is what the matchers run against, so a leading
+  // sudo/doas/env/time wrapper can't defeat the `^rm`-anchored safe rescues
+  // while the unanchored destructive rules still fire (the wrapper-prefixed
+  // false-positive family).
   const segments = normalizeCommand(command);
+  const strippedCommand = stripWrapperPrefixes(command);
 
-  // (4) Quick-reject prefilter.
-  const candidates = registry.candidatePacks(command);
+  // (4) Quick-reject prefilter. Scan BOTH the raw command AND the normalized
+  // segment text. This ports DCG's `contains_shell_word_obfuscation` escape
+  // hatch: obfuscated command words (r\m, 'r'm, g\it, f\ind, …) hide a pack
+  // keyword from the RAW text, but normalization resolves them to the real
+  // command word — so a quick-reject on raw text alone would wave the whole
+  // command through before any pattern runs. Including the normalized text in
+  // the prefilter closes that bypass.
+  const normalizedText = segments.map((s) => s.normalized).join("\n");
+  const prefilterText =
+    normalizedText === command ? command : `${command}\n${normalizedText}`;
+  const candidates = registry.candidatePacks(prefilterText);
   if (candidates.length === 0) {
     return allowDecision("quick_reject");
   }
@@ -142,7 +157,7 @@ export function evaluateCommand(
   // (5) Strictest-wins across candidate packs.
   let best: EngineDecision | undefined;
   for (const pack of candidates) {
-    const decision = matchPack(pack, segments, command, resolved);
+    const decision = matchPack(pack, segments, strippedCommand, resolved);
     if (!decision) continue;
     if (decision.decision === "allow") continue; // packs only emit deny/warn/log
     if (best === undefined || isStricter(decision, best)) {

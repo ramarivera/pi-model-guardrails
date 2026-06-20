@@ -59,8 +59,8 @@ const DECISION_EXCLUSIONS = new Map<string, string>([
   ["DROP TABLE IF EXISTS foo;", "pending pack: database.*"],
   ["DROP DATABASE IF EXISTS foo;", "pending pack: database.*"],
   ["TRUNCATE TABLE foo RESTART IDENTITY;", "pending pack: database.*"],
-  // 2. KNOWN_MASKING_GAPS — real false positives, fix via data-span masking port
-  ["env FOO='`rm -rf /`' git status", "masking gap: single-quoted backticks are inert"],
+  // 2. KNOWN_MASKING_GAPS — real false positives, fix via data-span masking port.
+  // (The env-assignment case is now fixed: wrapper-strip removes `env FOO=...`.)
   ["echo $((rm -rf /))", "masking gap: $((arith)) is not a command context"],
   [
     'git commit -m "docs: example heredoc: cat <<EOF rm -rf / EOF"',
