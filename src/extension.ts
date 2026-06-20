@@ -36,7 +36,7 @@ import {
   type GuardrailsTelemetry,
 } from "./observability.ts";
 import type { Constraint } from "./policy/types.ts";
-import { initialState } from "./state/machine.ts";
+import { clearHalt, initialState } from "./state/machine.ts";
 import type {
   CallMeta,
   GraderSignal,
@@ -324,6 +324,73 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
       return { systemPrompt: note };
     },
   );
+
+  // Human-ack recovery for a HALTED session. HALTED is terminal for the model:
+  // no tool call — graded or not — can clear it (that is the whole point of an
+  // inviolable-constraint halt). This slash command is the documented escape
+  // hatch: a HUMAN types `/guardrails-clear-halt` in the TUI, is shown what was
+  // violated, and must explicitly confirm. Defense in depth — the model cannot
+  // emit a slash command (those originate in the human input editor, not the
+  // tool-call stream), the confirm() requires a real interactive y/n, and
+  // clearHalt's literal-`true` ack guard rejects any erased/forged token. If
+  // there is no interactive UI (RPC/print mode), there is no safe human-ack
+  // path, so we refuse rather than clear blind.
+  if (typeof pi.registerCommand === "function") {
+    pi.registerCommand("guardrails-clear-halt", {
+      description:
+        "Clear a HALTED guardrails state (human acknowledgement required)",
+      handler: async (_args, ctx) => {
+        if (state.state !== "HALTED") {
+          ctx.ui.notify(
+            `[model-guardrails] Not halted (state: ${state.state}); nothing to clear.`,
+            "info",
+          );
+          return;
+        }
+        if (!ctx.hasUI) {
+          ctx.ui.notify(
+            "[model-guardrails] Cannot clear a halt without an interactive UI. " +
+              "Run the TUI and re-issue /guardrails-clear-halt, or clear the " +
+              "persisted guard state out-of-band.",
+            "error",
+          );
+          return;
+        }
+
+        const reason = state.armedReason
+          ? `\n\nViolated: ${state.armedReason}`
+          : "";
+        const confirmed = await ctx.ui.confirm(
+          "Clear guardrails HALT?",
+          "This session was HALTED on an inviolable constraint. Clearing it " +
+            "lets the model act again. Only do this if you have reviewed what " +
+            `happened and accept responsibility.${reason}`,
+        );
+        if (!confirmed) {
+          ctx.ui.notify(
+            "[model-guardrails] Halt kept. Session stays HALTED.",
+            "info",
+          );
+          return;
+        }
+
+        const previousEpoch = state.stateEpoch;
+        state = clearHalt(state, true);
+        persistState(pi, state);
+        setStatus(ctx, state);
+        await telemetry.logEvent("halt_cleared", {
+          via: "guardrails-clear-halt",
+          fromEpoch: previousEpoch,
+          toEpoch: state.stateEpoch,
+        });
+        ctx.ui.notify(
+          "[model-guardrails] Halt cleared by human acknowledgement. " +
+            "Session is COMPLIANT.",
+          "info",
+        );
+      },
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

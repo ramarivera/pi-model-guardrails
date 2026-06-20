@@ -18,6 +18,7 @@
 //                        (entry checks, quick-reject, fail-open ordering)
 //   - src/packs/mod.rs : Severity::default_mode, PackRegistry::check_command
 
+import { resolveIndirection } from "./indirection.ts";
 import { matchPack } from "./matcher.ts";
 import { normalizeCommand, stripWrapperPrefixes } from "./normalize.ts";
 import type { Registry } from "./registry.ts";
@@ -77,7 +78,10 @@ function modeRank(mode: DecisionMode): number {
  * NOT stricter (so the earlier pack — already held in `current` — wins,
  * preserving declaration-order attribution).
  */
-function isStricter(candidate: EngineDecision, current: EngineDecision): boolean {
+function isStricter(
+  candidate: EngineDecision,
+  current: EngineDecision,
+): boolean {
   const cm = modeRank(candidate.decision);
   const um = modeRank(current.decision);
   if (cm !== um) return cm > um;
@@ -102,7 +106,10 @@ function allowDecision(reason: string): EngineDecision {
  *  4. Quick-reject via registry.candidatePacks (keyword substring prefilter).
  *  5. Run matchPack on each candidate pack; keep the STRICTEST decision across
  *     packs, ties broken by declaration order.
- *  6. If nothing fires, allow (allowReason="no_match").
+ *  6. Tier-3 indirection pass: resolve one level of variable/alias indirection
+ *     and re-run the engine on the expansion (catches `x=rm; $x -rf ~`). A
+ *     stricter resolved result wins; the attribution is annotated.
+ *  7. If nothing fires, allow (allowReason="no_match").
  */
 export function evaluateCommand(
   command: string,
@@ -136,7 +143,7 @@ export function evaluateCommand(
   // degrades to the engine's standard polarity — fail-open in a clear state,
   // fail-closed when armed — rather than propagating and breaking the tool call.
   try {
-    return evaluateInner(command, registry, resolved);
+    return evaluateInner(command, registry, resolved, false);
   } catch {
     if (resolved.failClosed) {
       return {
@@ -155,6 +162,7 @@ function evaluateInner(
   command: string,
   registry: Registry,
   resolved: Required<EvaluateOptions>,
+  skipResolution: boolean,
 ): EngineDecision {
   // (3) Normalize into classified segments. Also compute the wrapper-stripped
   // whole command (DCG's `command_for_packs = normalize_command(strip_wrapper_
@@ -195,8 +203,37 @@ function evaluateInner(
     }
   }
 
+  // (6) Tier-3 structural indirection pass. The literal text matched nothing
+  // STRICTER than `best` so far, but a destructive sink may be hidden behind one
+  // level of variable/alias indirection (`x=rm; $x -rf /`). Resolve it and
+  // re-run the SAME engine on the expansion (skipResolution=true bounds the
+  // recursion to a single re-entry). A stricter result wins; the attribution is
+  // annotated so the policy/state layers can see it came via indirection.
+  if (!skipResolution) {
+    const indirect = resolveIndirection(command);
+    if (indirect && indirect.expanded !== command) {
+      const alt = evaluateInner(indirect.expanded, registry, resolved, true);
+      if (alt.blocked && (best === undefined || isStricter(alt, best))) {
+        return annotateIndirection(alt, indirect.notes);
+      }
+    }
+  }
+
   if (best) return best;
 
-  // (6) Nothing fired.
+  // (7) Nothing fired.
   return allowDecision("no_match");
+}
+
+/** Tag an indirection-resolved decision so its origin is visible downstream. */
+function annotateIndirection(
+  decision: EngineDecision,
+  notes: string[],
+): EngineDecision {
+  const via = notes.length > 0 ? notes.join("+") : "indirection";
+  const base = decision.reason ?? "destructive command";
+  return {
+    ...decision,
+    reason: `${base} (resolved via ${via} indirection)`,
+  };
 }

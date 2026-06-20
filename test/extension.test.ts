@@ -20,24 +20,39 @@ import type { Completer } from "../src/grade.ts";
 
 type Handler = (event: unknown, ctx: unknown) => unknown;
 
+type CommandHandler = (args: string, ctx: unknown) => Promise<void>;
+
 interface FakePi {
   handlers: Map<string, Handler>;
   entries: Array<{ type: "custom"; customType: string; data: unknown }>;
+  commands: Map<string, { description?: string; handler: CommandHandler }>;
   on(event: string, handler: Handler): void;
   appendEntry(customType: string, data?: unknown): void;
+  registerCommand(
+    name: string,
+    options: { description?: string; handler: CommandHandler },
+  ): void;
 }
 
 function createFakePi(): FakePi {
   const handlers = new Map<string, Handler>();
   const entries: FakePi["entries"] = [];
+  const commands = new Map<
+    string,
+    { description?: string; handler: CommandHandler }
+  >();
   return {
     handlers,
     entries,
+    commands,
     on(event, handler) {
       handlers.set(event, handler);
     },
     appendEntry(customType, data) {
       entries.push({ type: "custom", customType, data });
+    },
+    registerCommand(name, options) {
+      commands.set(name, options);
     },
   };
 }
@@ -48,8 +63,11 @@ interface FakeCtx {
   ui: {
     statuses: Record<string, string | undefined>;
     notifications: Array<{ message: string; type?: string }>;
+    confirmReply: boolean;
+    confirmCalls: Array<{ title: string; message: string }>;
     notify(message: string, type?: string): void;
     setStatus(key: string, text: string | undefined): void;
+    confirm(title: string, message: string): Promise<boolean>;
   };
   sessionManager: {
     getEntries(): unknown[];
@@ -63,11 +81,17 @@ function createFakeCtx(cwd: string, entries: unknown[] = []): FakeCtx {
     ui: {
       statuses: {},
       notifications: [],
+      confirmReply: false,
+      confirmCalls: [],
       notify(message, type) {
         this.notifications.push({ message, type });
       },
       setStatus(key, text) {
         this.statuses[key] = text;
+      },
+      async confirm(title, message) {
+        this.confirmCalls.push({ title, message });
+        return this.confirmReply;
       },
     },
     sessionManager: {
@@ -427,5 +451,138 @@ test("before_agent_start injects a steering note only when armed", async () => {
   assert.ok(
     armed.systemPrompt.includes("model-guardrails"),
     "the steering note is tagged",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// HALTED human-ack recovery — the /guardrails-clear-halt slash command.
+// HALTED is terminal for the model; only a human typing the slash command and
+// confirming an interactive dialog can clear it. The command is never reachable
+// from the model's tool-call stream.
+// ---------------------------------------------------------------------------
+
+const CLEAR_HALT_CMD = "guardrails-clear-halt";
+
+async function runCommand(
+  pi: FakePi,
+  ctx: FakeCtx,
+  name: string,
+): Promise<void> {
+  const cmd = pi.commands.get(name);
+  assert.ok(cmd, `command ${name} must be registered`);
+  await cmd.handler("", ctx);
+}
+
+async function haltSession(pi: FakePi, ctx: FakeCtx): Promise<void> {
+  // A critical/inviolable command HALTs (terminal). git reset --hard => HALTED.
+  const result = await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+  assert.ok(result?.block, "git reset --hard should HALT the session");
+}
+
+test("registers the /guardrails-clear-halt command", () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  assert.ok(
+    pi.commands.has(CLEAR_HALT_CMD),
+    "the HALT-clear command is registered",
+  );
+});
+
+test("clear-halt: human confirm clears HALTED -> COMPLIANT and unblocks", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries);
+  ctx.hasUI = true;
+  ctx.ui.confirmReply = true; // human says YES
+
+  await startSession(pi, ctx);
+  await haltSession(pi, ctx);
+
+  // While HALTED, even a clean call is blocked.
+  const heldBefore = await fireToolCall(pi, ctx, "ls -la");
+  assert.ok(heldBefore?.block, "HALTED blocks everything, even clean calls");
+
+  await runCommand(pi, ctx, CLEAR_HALT_CMD);
+  assert.equal(ctx.ui.confirmCalls.length, 1, "the human was asked to confirm");
+
+  // State persisted COMPLIANT.
+  const stateEntries = pi.entries.filter(
+    (e) => e.customType === GUARD_STATE_ENTRY_TYPE,
+  );
+  const last = stateEntries[stateEntries.length - 1].data as { state: string };
+  assert.equal(last.state, "COMPLIANT", "halt cleared to COMPLIANT");
+
+  // A clean call now passes through.
+  const after = await fireToolCall(pi, ctx, "ls -la");
+  assert.equal(after, undefined, "clean calls run again after the halt clears");
+});
+
+test("clear-halt: human decline keeps the session HALTED", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries);
+  ctx.hasUI = true;
+  ctx.ui.confirmReply = false; // human says NO
+
+  await startSession(pi, ctx);
+  await haltSession(pi, ctx);
+
+  await runCommand(pi, ctx, CLEAR_HALT_CMD);
+  assert.equal(ctx.ui.confirmCalls.length, 1, "the human was asked to confirm");
+
+  // Still HALTED — a clean call is still blocked.
+  const after = await fireToolCall(pi, ctx, "ls -la");
+  assert.ok(after?.block, "decline keeps the session HALTED");
+});
+
+test("clear-halt: no interactive UI refuses to clear (no blind clear)", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries);
+  ctx.hasUI = false; // RPC/print mode — no human-ack path
+
+  await startSession(pi, ctx);
+  await haltSession(pi, ctx);
+
+  await runCommand(pi, ctx, CLEAR_HALT_CMD);
+  assert.equal(
+    ctx.ui.confirmCalls.length,
+    0,
+    "no confirm dialog without an interactive UI",
+  );
+  assert.ok(
+    ctx.ui.notifications.some(
+      (n) => n.type === "error" && /interactive UI/i.test(n.message),
+    ),
+    "refusal is surfaced as an error",
+  );
+
+  // Still HALTED.
+  const after = await fireToolCall(pi, ctx, "ls -la");
+  assert.ok(after?.block, "stays HALTED when there is no human-ack path");
+});
+
+test("clear-halt: a no-op when the session is not halted", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries);
+  ctx.hasUI = true;
+  ctx.ui.confirmReply = true;
+
+  await startSession(pi, ctx); // COMPLIANT, never halted
+  await runCommand(pi, ctx, CLEAR_HALT_CMD);
+
+  assert.equal(
+    ctx.ui.confirmCalls.length,
+    0,
+    "no confirm dialog when there is nothing to clear",
+  );
+  assert.ok(
+    ctx.ui.notifications.some((n) => /nothing to clear/i.test(n.message)),
+    "tells the human there is nothing to clear",
   );
 });
