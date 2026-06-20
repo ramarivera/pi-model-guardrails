@@ -115,3 +115,17 @@ test("checkout -f / --force is caught (coverage gap)", () => {
   expectAllow("git checkout -b feature");
   expectAllow("git checkout main");
 });
+
+// HIGH (FN, dangerous): mixed short+long rm flags must still catch root/home.
+test("rm with mixed short+long recursive/force flags is caught on root/home", () => {
+  expectDeny("rm -r --force /");
+  expectDeny("rm --recursive -f /etc");
+  expectDeny("rm -f --recursive /home/me");
+  expectDeny("rm --force -r /");
+  // combined + all-short + all-long still work
+  expectDeny("rm -rf /");
+  expectDeny("rm -r -f /etc");
+  expectDeny("rm --recursive --force /");
+  // mixed flags on a temp path remain safe (no over-block)
+  expectAllow("rm -r --force /tmp/x");
+});

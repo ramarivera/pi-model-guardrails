@@ -440,22 +440,26 @@ function newRmFlagTracker(): RmFlagTracker {
   };
 }
 
-// Port of RmFlagTracker::resolve.
+// Port of RmFlagTracker::resolve, with a divergence from DCG: recursion and
+// force may each arrive via a SHORT (-r/-f) or LONG (--recursive/--force) flag,
+// in any MIX. DCG only resolved all-short (-r -f) or all-long, so a mixed form
+// like `rm -r --force /` resolved to nothing and slipped through (a reviewed
+// false negative on root/home deletion). We treat recursion=(short||long) and
+// force=(short||long); if both are present (and not a single combined token),
+// it is a forced recursive removal.
 function resolveFlags(flags: RmFlagTracker): RmFlagState | undefined {
   if (flags.combinedSpan !== undefined) {
     return { style: "combined", span: flags.combinedSpan, sawTerminator: flags.sawTerminator };
   }
-  if (flags.seenR && flags.seenF) {
+  const recursive = flags.seenR || flags.seenLongRecursive;
+  const force = flags.seenF || flags.seenLongForce;
+  if (recursive && force) {
+    // "long" only when BOTH came from long flags (preserves DCG path-safety
+    // semantics for the pure-long case); any short flag present => "separate".
+    const allLong = !flags.seenR && !flags.seenF;
     return {
-      style: "separate",
-      span: flags.rSpan ?? flags.fSpan,
-      sawTerminator: flags.sawTerminator,
-    };
-  }
-  if (flags.seenLongRecursive && flags.seenLongForce) {
-    return {
-      style: "long",
-      span: flags.recursiveSpan ?? flags.forceSpan,
+      style: allLong ? "long" : "separate",
+      span: flags.rSpan ?? flags.recursiveSpan ?? flags.fSpan ?? flags.forceSpan,
       sawTerminator: flags.sawTerminator,
     };
   }
