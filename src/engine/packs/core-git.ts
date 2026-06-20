@@ -114,6 +114,25 @@ const destructivePatterns: DestructiveRule[] = [
       s("git diff HEAD {ref} -- {path}", "Preview what would change before overwriting"),
     ],
   },
+  // checkout -f / --force overwrites the working tree, discarding uncommitted
+  // changes. (Coverage gap in DCG core.git; added per the Phase 1 review.)
+  {
+    name: "checkout-force",
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:[^\s&;|`()<>]+\s+)*checkout\s+(?:[^\s&;|`()<>]+\s+)*(?:-[a-zA-Z]*f[a-zA-Z]*\b|--force\b)/,
+    severity: "high",
+    reason:
+      "git checkout -f/--force overwrites the working tree, discarding uncommitted changes. Use 'git stash' first.",
+    explanation:
+      "git checkout --force (or -f) overwrites your working tree to match the target " +
+      "branch/ref, permanently discarding any uncommitted changes.\n\n" +
+      "Safer alternatives:\n" +
+      "- git stash: save changes first, switch, then 'git stash pop'\n" +
+      "- git status && git diff: review what would be lost first",
+    suggestions: [
+      s("git stash", "Save changes first, then checkout, then restore with 'git stash pop'"),
+      s("git status && git diff", "Review what would be lost before forcing checkout"),
+    ],
+  },
   // restore without --staged affects the working tree. The added
   // `(?![^&;|`()<>]*(?:--worktree|-W))` lookahead defers the --worktree/-W forms
   // to restore-worktree-explicit below (correct rule attribution), and the
@@ -166,7 +185,10 @@ const destructivePatterns: DestructiveRule[] = [
   // reset --hard destroys uncommitted work (CRITICAL - extremely common mistake).
   {
     name: "reset-hard",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*reset\s+--hard/,
+    // Bounded walker between `reset` and `--hard` so intervening flags don't
+    // bypass it (`git reset -q --hard`, `git reset --quiet --hard HEAD~1`).
+    // DIVERGES from DCG's first-token-only form to close a reviewed FN.
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*reset\s+(?:[^\s&;|`()<>]+\s+)*--hard/,
     severity: "critical",
     reason: "git reset --hard destroys uncommitted changes. Use 'git stash' first.",
     explanation:
@@ -212,7 +234,11 @@ const destructivePatterns: DestructiveRule[] = [
   // clean -f deletes untracked files (CRITICAL - permanently removes files).
   {
     name: "clean-force",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*clean\s+(?:-[a-z]*f|--force\b)/,
+    // Bounded walker between `clean` and the force flag so separate flags don't
+    // bypass it (`git clean -d -f`, `git clean -x -f`, `git clean -e build -f`).
+    // The order-independent clean dry-run safe pattern above still shields any
+    // `-n` form. DIVERGES from DCG's first-token-only form to close a reviewed FN.
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*clean\s+(?:[^\s&;|`()<>]+\s+)*(?:-[a-z]*f|--force\b)/,
     severity: "critical",
     reason:
       "git clean -f/--force removes untracked files permanently. Review with 'git clean -n' first.",

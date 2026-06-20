@@ -92,3 +92,26 @@ test("genuine working-tree restore still blocks", () => {
   expectDeny("git restore file.txt");
   expectDeny("git restore --worktree file.txt");
 });
+
+// HIGH (FN): flag-position bypasses in git pack rules.
+test("reset --hard is caught with intervening flags", () => {
+  expectDeny("git reset --hard");
+  expectDeny("git reset -q --hard");
+  expectDeny("git reset --quiet --hard HEAD~1");
+  expectAllow("git reset --soft HEAD~1");
+});
+
+test("clean force is caught with separate flags", () => {
+  expectDeny("git clean -fd");
+  expectDeny("git clean -d -f");
+  expectDeny("git clean -x -f");
+  expectAllow("git clean -n");
+  expectAllow("git clean -d -n"); // dry-run anywhere
+});
+
+test("checkout -f / --force is caught (coverage gap)", () => {
+  expectDeny("git checkout -f main");
+  expectDeny("git checkout --force main");
+  expectAllow("git checkout -b feature");
+  expectAllow("git checkout main");
+});
