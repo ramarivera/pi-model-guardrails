@@ -441,10 +441,19 @@ export function cacheKey(input: GradeInput): string {
   return `${input.toolName}|${argsHash}|${constraintsHash}|${viol}|${recentHash}|${input.stateEpoch}`;
 }
 
-/** Stable fingerprint of the active constraint set (id+severity+statement). */
+/**
+ * Stable fingerprint of the active constraint set. Includes every field the
+ * grade PROMPT renders (id, severity, title, statement, appliesWhen,
+ * requiredBehavior) so that editing any of them invalidates a cached verdict
+ * (coderabbit) — otherwise a changed requiredBehavior/appliesWhen would reuse a
+ * stale grade.
+ */
 function constraintsFingerprint(constraints: Constraint[]): string {
   return [...constraints]
-    .map((c) => `${c.id}:${c.severity}:${c.statement}`)
+    .map(
+      (c) =>
+        `${c.id}:${c.severity}:${c.title}:${c.statement}:${c.appliesWhen ?? ""}:${c.requiredBehavior ?? ""}`,
+    )
     .sort()
     .join("|");
 }

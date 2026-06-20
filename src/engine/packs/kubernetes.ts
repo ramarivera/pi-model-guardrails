@@ -489,6 +489,44 @@ const destructivePatterns: DestructiveRule[] = [
     explanation: DELETE_NAMESPACE_EXPLANATION,
     suggestions: DELETE_NAMESPACE_SUGGESTIONS,
   },
+  // CRITICAL delete-variants come BEFORE the broad high-severity delete rules:
+  // first-match-wins is per-pack, so a broad rule declared first would shadow a
+  // more-specific critical and downgrade its verdict (coderabbit). e.g.
+  // `--all\b` prefixes `--all-namespaces`, and `delete deployment … --force
+  // --grace-period=0` would hit delete-workload before delete-force.
+  {
+    name: "delete-all-namespaces",
+    re: /kubectl\b.*?\bdelete\s+.*(?:-A\b|--all-namespaces)/,
+    severity: "critical",
+    reason:
+      "kubectl delete with -A/--all-namespaces affects ALL namespaces. Very dangerous!",
+    explanation: DELETE_ALL_NAMESPACES_EXPLANATION,
+  },
+  {
+    name: "delete-pvc",
+    re: /kubectl\b.*?\bdelete\s+(?:pvc|persistentvolumeclaim)\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$))/,
+    severity: "critical",
+    reason:
+      "kubectl delete pvc may permanently delete data if ReclaimPolicy is Delete.",
+    explanation: DELETE_PVC_EXPLANATION,
+    suggestions: DELETE_PVC_SUGGESTIONS,
+  },
+  {
+    name: "delete-pv",
+    re: /kubectl\b.*?\bdelete\s+(?:pv|persistentvolume)\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$))/,
+    severity: "critical",
+    reason: "kubectl delete pv may permanently delete the underlying storage.",
+    explanation: DELETE_PV_EXPLANATION,
+  },
+  {
+    name: "delete-force",
+    re: /kubectl\b.*?\bdelete\s+.*--force.*--grace-period=0|kubectl\b.*?\bdelete\s+.*--grace-period=0.*--force/,
+    severity: "critical",
+    reason:
+      "kubectl delete --force --grace-period=0 immediately removes resources without graceful shutdown.",
+    explanation: DELETE_FORCE_EXPLANATION,
+    suggestions: DELETE_FORCE_SUGGESTIONS,
+  },
   {
     name: "delete-all",
     re: /kubectl\b.*?\bdelete\s+.*--all\b/,
@@ -497,14 +535,6 @@ const destructivePatterns: DestructiveRule[] = [
       "kubectl delete --all removes ALL resources of that type. Use --dry-run=client first.",
     explanation: DELETE_ALL_EXPLANATION,
     suggestions: DELETE_ALL_SUGGESTIONS,
-  },
-  {
-    name: "delete-all-namespaces",
-    re: /kubectl\b.*?\bdelete\s+.*(?:-A\b|--all-namespaces)/,
-    severity: "critical",
-    reason:
-      "kubectl delete with -A/--all-namespaces affects ALL namespaces. Very dangerous!",
-    explanation: DELETE_ALL_NAMESPACES_EXPLANATION,
   },
   {
     name: "drain-node",
@@ -539,36 +569,11 @@ const destructivePatterns: DestructiveRule[] = [
     explanation: DELETE_WORKLOAD_EXPLANATION,
   },
   {
-    name: "delete-pvc",
-    re: /kubectl\b.*?\bdelete\s+(?:pvc|persistentvolumeclaim)\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$))/,
-    severity: "critical",
-    reason:
-      "kubectl delete pvc may permanently delete data if ReclaimPolicy is Delete.",
-    explanation: DELETE_PVC_EXPLANATION,
-    suggestions: DELETE_PVC_SUGGESTIONS,
-  },
-  {
-    name: "delete-pv",
-    re: /kubectl\b.*?\bdelete\s+(?:pv|persistentvolume)\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$))/,
-    severity: "critical",
-    reason: "kubectl delete pv may permanently delete the underlying storage.",
-    explanation: DELETE_PV_EXPLANATION,
-  },
-  {
     name: "scale-to-zero",
     re: /kubectl\b.*?\bscale\s+.*--replicas=0/,
     severity: "high",
     reason: "kubectl scale --replicas=0 stops all pods for the workload.",
     explanation: SCALE_TO_ZERO_EXPLANATION,
-  },
-  {
-    name: "delete-force",
-    re: /kubectl\b.*?\bdelete\s+.*--force.*--grace-period=0|kubectl\b.*?\bdelete\s+.*--grace-period=0.*--force/,
-    severity: "critical",
-    reason:
-      "kubectl delete --force --grace-period=0 immediately removes resources without graceful shutdown.",
-    explanation: DELETE_FORCE_EXPLANATION,
-    suggestions: DELETE_FORCE_SUGGESTIONS,
   },
   {
     name: "apply-force",

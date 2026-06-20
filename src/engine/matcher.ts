@@ -106,7 +106,14 @@ function firstSafeMatch(
   for (const rule of pack.safePatterns) {
     const r = guardedTest(rule.re, text, opts);
     if (r === true) return rule;
-    if (r === "fail") sawFail = true;
+    if (r === "fail") {
+      // In fail-CLOSED mode a guard trip must win immediately: an uncheckable
+      // safe rule means we cannot trust the whitelist, and a LATER safe rule
+      // matching `true` must not mask the trip (which would wrongly whitelist a
+      // degraded, armed session's input). Fail-open mode ignores the trip.
+      if (opts.failClosed) return "fail";
+      sawFail = true;
+    }
   }
   return sawFail ? "fail" : undefined;
 }
@@ -127,7 +134,12 @@ function firstDestructiveMatch(
   for (const rule of pack.destructivePatterns) {
     const r = guardedTest(rule.re, text, opts);
     if (r === true) return rule;
-    if (r === "fail") sawFail = true;
+    if (r === "fail") {
+      // Fail-CLOSED: a guard trip wins immediately (deny) rather than being
+      // masked by a later rule's outcome. Fail-open ignores the trip.
+      if (opts.failClosed) return "fail";
+      sawFail = true;
+    }
   }
   return sawFail ? "fail" : undefined;
 }

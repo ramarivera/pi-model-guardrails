@@ -1094,8 +1094,11 @@ const gitlabSafe: SafeRule[] = [
     re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+view\b/,
   },
   {
+    // Whitelist only a PURE GET `glab api` call — refuse the safe match when a
+    // destructive method (DELETE/POST/PUT/PATCH) is also present so a mixed
+    // `glab api -X DELETE … -X GET` is not shielded (coderabbit).
     name: "glab-api-explicit-get",
-    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/,
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b(?!.*(?:-X\s*|--method(?:=|\s+))(?:DELETE|POST|PUT|PATCH)\b).*(?:-X\s*|--method(?:=|\s+))GET\b/,
   },
 ];
 

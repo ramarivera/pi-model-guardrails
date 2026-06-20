@@ -353,13 +353,17 @@ function toMachineConfig(
   const base = defaultMachineConfig();
   if (!wire) return base;
   return {
-    watchCleanStreak: numberOr(wire.watchCleanStreak, base.watchCleanStreak),
-    gatedCleanStreak: numberOr(wire.gatedCleanStreak, base.gatedCleanStreak),
-    recoveringWatermark: numberOr(
+    // Streaks/watermark must be POSITIVE integers; a 0/negative/float would wedge
+    // the recovery logic (an unreachable streak never clears the gate). cooldown
+    // may be 0 (no cooldown). Invalid values fall back to the safe default.
+    watchCleanStreak: intOr(wire.watchCleanStreak, base.watchCleanStreak, 1),
+    gatedCleanStreak: intOr(wire.gatedCleanStreak, base.gatedCleanStreak, 1),
+    recoveringWatermark: intOr(
       wire.recoveringWatermark,
       base.recoveringWatermark,
+      1,
     ),
-    cooldownTurns: numberOr(wire.cooldownTurns, base.cooldownTurns),
+    cooldownTurns: intOr(wire.cooldownTurns, base.cooldownTurns, 0),
     gateOnlyMutatingInWatch: boolOr(
       wire.gateOnlyMutatingInWatch,
       base.gateOnlyMutatingInWatch,
@@ -384,6 +388,14 @@ function toTelemetry(
 
 function numberOr(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/** An INTEGER >= min, else the fallback. Guards machine thresholds against
+ * non-integer / out-of-range config that would break the state machine. */
+function intOr(value: unknown, fallback: number, min: number): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= min
+    ? value
+    : fallback;
 }
 
 function boolOr(value: unknown, fallback: boolean): boolean {
