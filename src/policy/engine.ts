@@ -72,8 +72,12 @@ export function resolvePolicy(
   const allowEntry =
     ruleId !== undefined ? findApplicableAllowEntry(ruleId, policy) : undefined;
   // allowlistable: a constraint may forbid relaxation regardless of allowlist.
+  // FAIL-CLOSED / opt-in: a constraint is relaxable ONLY when it explicitly sets
+  // allowlistable === true. Omitted (undefined) or false both FORBID relaxation,
+  // matching the documented contract ("if false/omitted, the allowlist can never
+  // relax a match against this constraint").
   const constraintForbidsAllow =
-    constraint !== undefined && constraint.allowlistable === false;
+    constraint !== undefined && constraint.allowlistable !== true;
   const allowlistable =
     !inviolable && !constraintForbidsAllow && allowEntry !== undefined;
 
@@ -278,7 +282,17 @@ function strictestMode(a: DecisionMode, b: DecisionMode): DecisionMode {
   return modeRank(a) >= modeRank(b) ? a : b;
 }
 
+// Max command length fed to an author-supplied constraint regex. A longer
+// command skips constraint detection rather than risk catastrophic backtracking
+// on a pathological operator/pack-authored pattern against a crafted input.
+// NOTE: this is a partial mitigation — it bounds the attacker-controlled input
+// length but does not stop exponential backtracking on a short crafted input.
+// Proper validate-at-load (reject nested unbounded quantifiers in constraint +
+// external-pack patterns) is tracked for Phase 4 hardening.
+const MAX_CONSTRAINT_INPUT = 4096;
+
 function safeRegexTest(pattern: string, input: string): boolean {
+  if (input.length > MAX_CONSTRAINT_INPUT) return false;
   try {
     return new RegExp(pattern).test(input);
   } catch {

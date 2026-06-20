@@ -156,6 +156,26 @@ export function transition(input: TransitionInput): TransitionResult {
         counts,
         config,
       );
+    default: {
+      // Unrecognized/corrupt persisted state — e.g. a state written by a newer
+      // build and rehydrated by an older one. FAIL CLOSED: treat it as HALTED so
+      // a degraded session can never silently reset to allowing (resume-safety /
+      // anti-backslide). Never fall off the switch returning undefined.
+      return {
+        next: bumpEpoch({
+          ...current,
+          state: "HALTED",
+          cleanStreak: 0,
+          armedReason: "Unrecognized guard state — failing closed.",
+          cooldownRemaining: 0,
+        }),
+        action: "halt",
+        reason: "Unrecognized guard state; failing closed (halted).",
+        steer:
+          "The guard state could not be recognized; the session is halted until a human acknowledges out-of-band.",
+        transitioned: true,
+      };
+    }
   }
 }
 
@@ -188,6 +208,25 @@ function fromCompliant(
 
   if (deterministic?.warn) {
     const reason = deterministic.reason ?? "Soft policy signal.";
+    // Post-recovery cooldown: a SOFT relapse within the cooldown window re-arms
+    // GATED (degraded mode) instead of the gentle WATCH path — a just-recovered
+    // session is treated more harshly on an immediate relapse. (A hard block
+    // already arms GATED above regardless of cooldown.)
+    if (current.cooldownRemaining > 0) {
+      return {
+        next: bumpEpoch({
+          ...current,
+          state: "GATED",
+          cleanStreak: 0,
+          armedReason: reason,
+          cooldownRemaining: 0,
+        }),
+        action: "allow", // the warn call itself runs; subsequent calls are gated
+        reason,
+        steer: `Relapse during cooldown: ${reason}. Re-gated — every tool call is graded until you are provably back on track.`,
+        transitioned: true,
+      };
+    }
     return {
       next: bumpEpoch({
         ...current,
@@ -261,7 +300,9 @@ function fromWatch(
         armedReason: undefined,
         cooldownRemaining: config.cooldownTurns,
       }),
-      action: gateActionForWatch(meta, config),
+      // The call that CLEARS watch has recovered the session — there is nothing
+      // left to gate on it. Return allow, not the WATCH gate action.
+      action: "allow",
       reason: "Cleared watch: back to compliant.",
       transitioned: true,
     };
