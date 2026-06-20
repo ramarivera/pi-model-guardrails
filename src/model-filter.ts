@@ -1,8 +1,19 @@
-import type { GuardrailsConfig } from "./types.ts";
+/** The only fields model gating reads. GuardrailsConfig satisfies this. */
+export interface ModelGatingLists {
+  modelWhitelist?: string[];
+  modelBlacklist?: string[];
+}
 
+/**
+ * Should the guardrails ENGINE apply to a session running `modelId`?
+ *
+ * This scopes WHICH models get guarded (not which models may run): a blacklisted
+ * model is left ungoverned; with a whitelist, ONLY whitelisted models are
+ * guarded; with neither, every model is guarded. Exact-id match only.
+ */
 export function shouldGuardrailModel(
   modelId: string | undefined,
-  config: GuardrailsConfig,
+  config: ModelGatingLists,
 ): boolean {
   if (!modelId) {
     return false;
@@ -15,7 +26,7 @@ export function shouldGuardrailModel(
   // rule applies to.
 
   // Blacklist takes precedence.
-  if (config.modelBlacklist && config.modelBlacklist.includes(modelId)) {
+  if (config.modelBlacklist?.includes(modelId)) {
     return false;
   }
 

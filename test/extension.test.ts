@@ -6,7 +6,7 @@
 // the Pi BLOCK shape. No real Pi runtime is involved — fully deterministic.
 
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -60,6 +60,7 @@ function createFakePi(): FakePi {
 interface FakeCtx {
   cwd: string;
   hasUI: boolean;
+  model?: { id: string };
   ui: {
     statuses: Record<string, string | undefined>;
     notifications: Array<{ message: string; type?: string }>;
@@ -74,10 +75,15 @@ interface FakeCtx {
   };
 }
 
-function createFakeCtx(cwd: string, entries: unknown[] = []): FakeCtx {
+function createFakeCtx(
+  cwd: string,
+  entries: unknown[] = [],
+  modelId?: string,
+): FakeCtx {
   return {
     cwd,
     hasUI: false,
+    model: modelId ? { id: modelId } : undefined,
     ui: {
       statuses: {},
       notifications: [],
@@ -563,6 +569,88 @@ test("clear-halt: no interactive UI refuses to clear (no blind clear)", async ()
   // Still HALTED.
   const after = await fireToolCall(pi, ctx, "ls -la");
   assert.ok(after?.block, "stays HALTED when there is no human-ack path");
+});
+
+// ---------------------------------------------------------------------------
+// Model gating — the guard scopes itself to the configured models. A whitelist
+// guards ONLY listed models; a blacklist leaves listed models ungoverned; with
+// neither, every model is guarded. An UNKNOWN model fails safe (guarded).
+// ---------------------------------------------------------------------------
+
+async function writeModelConfig(
+  cwd: string,
+  lists: { modelWhitelist?: string[]; modelBlacklist?: string[] },
+): Promise<void> {
+  await mkdir(join(cwd, ".pi"), { recursive: true });
+  await writeFile(
+    join(cwd, ".pi/guardrails.json"),
+    JSON.stringify(lists),
+    "utf8",
+  );
+}
+
+test("model gating: a model NOT on the whitelist stands the guard down", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  await writeModelConfig(cwd, { modelWhitelist: ["only-this-model"] });
+  const ctx = createFakeCtx(cwd, pi.entries, "some-other-model");
+
+  await startSession(pi, ctx);
+  // git reset --hard would normally HALT — but this model is out of scope.
+  const result = await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+  assert.equal(
+    result,
+    undefined,
+    "ungoverned model: dangerous call passes through",
+  );
+});
+
+test("model gating: a model ON the whitelist is guarded", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  await writeModelConfig(cwd, { modelWhitelist: ["glm-5.2"] });
+  const ctx = createFakeCtx(cwd, pi.entries, "glm-5.2");
+
+  await startSession(pi, ctx);
+  const result = await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+  assert.ok(result?.block, "whitelisted model is guarded");
+});
+
+test("model gating: a blacklisted model stands the guard down", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  await writeModelConfig(cwd, { modelBlacklist: ["glm-5.2"] });
+  const ctx = createFakeCtx(cwd, pi.entries, "glm-5.2");
+
+  await startSession(pi, ctx);
+  const result = await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+  assert.equal(result, undefined, "blacklisted model is ungoverned");
+});
+
+test("model gating: an UNKNOWN model with a whitelist set stays guarded (fail safe)", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  await writeModelConfig(cwd, { modelWhitelist: ["glm-5.2"] });
+  const ctx = createFakeCtx(cwd, pi.entries); // no model id
+
+  await startSession(pi, ctx);
+  const result = await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+  assert.ok(result?.block, "unknown model fails safe — guard stays on");
+});
+
+test("model gating: no lists configured guards every model", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries, "any-model");
+
+  await startSession(pi, ctx);
+  const result = await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+  assert.ok(result?.block, "default config guards all models");
 });
 
 test("clear-halt: a no-op when the session is not halted", async () => {
