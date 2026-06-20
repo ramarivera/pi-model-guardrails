@@ -1,8 +1,9 @@
 # pi-model-guardrails rebuild — session handoff / final state
 
-> The DCG→Pi port is **functionally complete at v0.2.0**. All four phases are
-> built, tested, and committed on `feat/dcg-port-v2`. This doc is now a resume/
-> ship reference. Delete before/at the v0.2.0 release.
+> The DCG→Pi port is **functionally complete at v0.2.0** (`feat/dcg-port-v2`,
+> pushed), with five post-port hardening items on top (`feat/dcg-port-hardening`,
+> pushed). This doc is a resume/ship reference. Delete before/at the v0.2.0
+> release.
 > Companion design doc: `~/dev/toolbox/projects/permissions-safety-net/pi-model-guardrails-rebuild-DESIGN.md`
 
 ## What this is
@@ -18,12 +19,40 @@
 
 ## Status: DONE / GREEN
 
-- Branch `feat/dcg-port-v2` (off `master` @ v0.1.7). Version bumped to **0.2.0**.
-- **`npm run check` exits 0** (biome + tsc) — this is the publish gate.
-- **559 unit + 5 e2e tests pass**, 0 fail. Includes the 284-case differential
-  corpus + 10 pack golden corpora + state-machine/policy/guard/grade/extension/
-  indirection suites.
-- `npm pack --dry-run`: 34 files, 0.2.0, dead modules gone.
+- **`feat/dcg-port-v2`** (off `master` @ v0.1.7, **pushed to origin**): the v0.2.0
+  port — all four phases.
+- **`feat/dcg-port-hardening`** (off v2, current branch): five post-port
+  hardening items (below).
+- **`npm run check` exits 0** (biome + tsc) — the publish gate.
+- **592 unit + 5 e2e tests pass**, 0 fail. Includes the differential corpus + 10
+  pack golden corpora + state-machine/policy/guard/grade/extension/indirection/
+  sanitize/regex-safety suites.
+- `npm pack --dry-run`: clean, 0.2.0, dead modules gone.
+
+## Hardening done (feat/dcg-port-hardening, all committed + green)
+
+Each adversarially reviewed where it touched the security floor:
+- **Propagation-chain FN**: cp/ln/rsync→rm across a NEWLINE separator now blocks
+  (DCG's `(?:&&|;|\|\|)` missed `\n`). `rm-parser.ts`.
+- **ReDoS validate-at-load**: untrusted constraint `detect.regex` is refused at
+  load if it does not compile / is too long / has the exponential nested-
+  quantifier shape. `regex-safety.ts` + `config.ts`. (Exported for the not-yet-
+  wired external-pack loader.)
+- **Model-gating enforcement**: `modelWhitelist`/`modelBlacklist` are now ENFORCED
+  — the guard stands down for an out-of-scope KNOWN model (read per tool_call;
+  unknown model + default both fail safe = guarded). `model-filter.ts` +
+  `extension.ts`.
+- **Data-span masking**: `sanitize.ts` — blanks data spans (git/gh/grep/etc.
+  data-flag values, echo/printf args, `# comments`, arithmetic `$((…))`) before
+  matching; clears the 2 documented corpus FPs. NEVER masks executed text
+  (`$(…)`, backticks, `<(…)`); curl payloads intentionally NOT masked (platform
+  packs inspect them). Adversarial FN review found + fixed a critical family
+  (redirect inside a data-flag value); consumeWord now terminates words at an
+  unquoted redirect.
+- **git restore --worktree ruleId (#8)**: left as-is — decision is correct
+  (deny/high); only the cosmetic ruleId attribution differs from the corpus and
+  ours (`restore-worktree-explicit`) is arguably the better one. Documented
+  divergence (RULEID_EXCLUSIONS).
 
 ## Environment / how to work here
 
@@ -93,23 +122,28 @@ regression-tested:
 **SHIP (Ramiro's action — not mine):** actual `npm publish`. The repo is his;
 publish is GitHub Actions trusted-publishing (`.github/workflows/publish.yml`,
 runs `npm ci → npm run check → npm test → npm run test:e2e → npm publish` and
-skips if the version already exists). Needs the branch pushed/merged + npm
-trusted-publishing configured for `ramarivera/pi-model-guardrails`. **No push was
-done this session** (no explicit yeet). The branch is local-only.
+skips if the version already exists). Needs the branches pushed/merged + npm
+trusted-publishing configured for `ramarivera/pi-model-guardrails`. `feat/dcg-
+port-v2` and `feat/dcg-port-hardening` are pushed to origin; **no PR/merge to
+`main` was opened** (your call). v2 is the publishable v0.2.0; hardening is
+additive on top.
 
-**DEFERRED HARDENING (documented, non-blocking; tracked in differential corpus
-DECISION_EXCLUSIONS):**
-- task #7: port DCG `classify_command` data-span masking + wire
-  `extractHeredocBodies` into `evaluateCommand` (`echo $((rm -rf /))`, trailing
-  `# comment`, quoted `-m "...rm -rf /..."`, heredoc bodies).
-- task #8: `git restore --worktree` ruleId attribution (re-check — may be stale).
-- propagation chain (cp/ln/rsync-then-rm) defeated by `;`/`|`/newline separators.
-- ReDoS validate-at-load for EXTERNAL pack patterns (core packs safe).
-- cross-`|`/`&&` variable propagation FP in the resolver — **accepted by design**
-  (security-first; documented in `indirection.ts` header).
-- `modelWhitelist`/`modelBlacklist` are loaded + logged but **not enforced** in
-  the rebuilt extension (`model-filter.ts` kept for when it's wired). Latent.
+**STILL DEFERRED (documented, non-blocking):**
+- **heredoc wiring** into `evaluateCommand` (`bash <<SH … rm -rf … SH`,
+  `$(cat <<EOF … )`): the 2 HEREDOC_ARTIFACT corpus exclusions remain. The data-
+  span masking (task #7) is DONE; heredoc-body scanning is the separate, more
+  debatable half (the corpus note says our raw-text deny is "arguably more
+  correct"), so it was left out deliberately. `extractHeredocBodies` exists in
+  `heredoc.ts`, unwired.
+- **append-redirect (`>>`) to sensitive paths** (`cat x >>/etc/passwd`): a
+  PRE-EXISTING engine gap (not masking-related) the FN review flagged — the
+  redirect packs don't cover `>>` to sensitive targets. Fix in the redirect
+  rules if append-to-sensitive is in scope.
+- cross-`|`/`&&` variable propagation FP in the indirection resolver — **accepted
+  by design** (security-first; documented in `indirection.ts` header).
 - turn_end intent grading vs active goal (Phase 3 nicety).
+- external-pack loading is not wired (ExternalPack type exists; `validateRegexSafety`
+  is ready for it).
 - A few non-blocking biome style warnings remain in earlier-phase files.
 
 ## Key decisions (from Ramiro + this session)
