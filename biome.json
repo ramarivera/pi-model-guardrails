@@ -13,8 +13,7 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noTemplateCurlyInString": "off",
-        "noAssignInExpressions": "off"
+        "noTemplateCurlyInString": "off"
       }
     }
   },

@@ -334,6 +334,19 @@ test("truncate blocks zero/shrink general (high)", () => {
   }
 });
 
+test("truncate covers attached/spaced size forms (coderabbit FN fix)", () => {
+  // -s0 (attached), --size 0 (space not =), -s-1 / -s -1 (negative).
+  assertBlocksWithSeverity("truncate -s0 /etc/passwd", "critical");
+  assertBlocksWithSeverity("truncate --size 0 /etc/passwd", "critical");
+  assertBlocksWithSeverity("truncate -s-1 /etc/shadow", "critical");
+  assertBlocksWithSeverity("truncate -s -1 /etc/hosts", "critical");
+  assertBlocksWithSeverity("truncate -s0 ./important.db", "high");
+  assertBlocksWithSeverity("truncate --size 0 build/out.bin", "high");
+  // grow (+N) and safe temp remain allowed (no regression).
+  assert.equal(check("truncate -s +100 ./app.log"), undefined);
+  assert.equal(check("truncate -s 0 /tmp/scratch/x"), undefined);
+});
+
 test("truncate under tmp / grow / help / reference is allowed", () => {
   for (const cmd of [
     "truncate -s 0 /tmp/scratch.bin",

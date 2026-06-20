@@ -209,13 +209,20 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
 
       const command = event.input.command;
       if (!deps) {
-        // session_start always runs first in practice; if not, fail OPEN (we
-        // have no config to make a safe decision) but say so loudly.
+        // session_start runs before tool_call in practice, so this is an
+        // initialization-order safety net, not a normal path. A GUARD must FAIL
+        // CLOSED when it cannot make a safe decision (coderabbit): block the
+        // command rather than waving it through ungoverned.
         await telemetry.logEvent("tool_call_no_config", {
           toolName: "bash",
-          reason: "deps_unset_before_session_start",
+          reason: "deps_unset_before_session_start_fail_closed",
         });
-        return;
+        const reason =
+          "Guardrails not initialized yet (session_start has not run); the " +
+          "command is blocked rather than run ungoverned. Retry once the session " +
+          "is ready.";
+        ctx.ui.notify(`Guardrails blocked: ${reason}`, "error");
+        return { block: true, reason };
       }
       const guardDeps = deps;
 
