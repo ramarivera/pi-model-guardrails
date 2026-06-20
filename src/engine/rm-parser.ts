@@ -341,35 +341,39 @@ function hasDotdotSegment(path: string): boolean {
     .some((segment) => segment === "..");
 }
 
+/** Safe temp prefixes for an UNQUOTED rm path (DCG path_is_safe_unquoted). */
+const SAFE_TMP_PREFIXES_UNQUOTED = [
+  "/tmp/",
+  "/var/tmp/",
+  "$TMPDIR/",
+  "${TMPDIR}/",
+  "${TMPDIR:-/tmp}/",
+  "${TMPDIR:-/var/tmp}/",
+];
+
+/** Safe temp prefixes for a DOUBLE-QUOTED rm path (DCG path_is_safe_double_quoted). */
+const SAFE_TMP_PREFIXES_DOUBLE_QUOTED = [
+  "$TMPDIR/",
+  "${TMPDIR}/",
+  "${TMPDIR:-/tmp}/",
+  "${TMPDIR:-/var/tmp}/",
+];
+
 // Port of path_is_safe_unquoted.
 function pathIsSafeUnquoted(path: string): boolean {
-  let rest: string | undefined;
-  if ((rest = stripPrefix(path, "/tmp/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "/var/tmp/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "$TMPDIR/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR}/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/tmp}/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/var/tmp}/")) !== undefined)
-    return !hasDotdotSegment(rest);
+  for (const prefix of SAFE_TMP_PREFIXES_UNQUOTED) {
+    const rest = stripPrefix(path, prefix);
+    if (rest !== undefined) return !hasDotdotSegment(rest);
+  }
   return false;
 }
 
 // Port of path_is_safe_double_quoted.
 function pathIsSafeDoubleQuoted(path: string): boolean {
-  let rest: string | undefined;
-  if ((rest = stripPrefix(path, "$TMPDIR/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR}/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/tmp}/")) !== undefined)
-    return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/var/tmp}/")) !== undefined)
-    return !hasDotdotSegment(rest);
+  for (const prefix of SAFE_TMP_PREFIXES_DOUBLE_QUOTED) {
+    const rest = stripPrefix(path, prefix);
+    if (rest !== undefined) return !hasDotdotSegment(rest);
+  }
   return false;
 }
 

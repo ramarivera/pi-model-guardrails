@@ -1021,7 +1021,7 @@ const destructivePatterns: DestructiveRule[] = [
   // ----- `truncate -s 0|--size=0|-s -N` (Critical: root/home/system) -----
   {
     name: "truncate-zero-root-home",
-    re: /\btruncate\b[^|;&]*?(?:\s-s\s+(?:0\b|-\d+)|\s--size=(?:0\b|-\d+))[^|;&]*?\s+['"\\]?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=\s|$|['"]))|\/(?=\s|$|['"])|~(?=\s|$|\/)|\$\{?HOME\b)/,
+    re: /\btruncate\b[^|;&]*?(?:\s-s\s*(?:0\b|-\d+)|\s--size(?:=|\s+)(?:0\b|-\d+))[^|;&]*?\s+['"\\]?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=\s|$|['"]))|\/(?=\s|$|['"])|~(?=\s|$|\/)|\$\{?HOME\b)/,
     severity: "critical",
     reason:
       "truncate -s 0|-N on a sensitive system or home path destroys data. EXTREMELY DANGEROUS.",
@@ -1031,7 +1031,7 @@ const destructivePatterns: DestructiveRule[] = [
   // ----- `truncate -s 0|--size=0|-s -N` (High: any other target) -----
   {
     name: "truncate-zero-general",
-    re: /\btruncate\b[^|;&]*?(?:\s-s\s+(?:0\b|-\d+)|\s--size=(?:0\b|-\d+))/,
+    re: /\btruncate\b[^|;&]*?(?:\s-s\s*(?:0\b|-\d+)|\s--size(?:=|\s+)(?:0\b|-\d+))/,
     severity: "high",
     reason:
       "truncate -s 0|-N is destructive (zeroes or shrinks file content) and requires human approval.",

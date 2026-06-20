@@ -514,6 +514,7 @@ function extractInlineScripts(
   const fromPattern = (re: RegExp): boolean => {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: canonical regex-walk `while ((m = re.exec()) !== null)` idiom
     while ((m = re.exec(command)) !== null) {
       if (m.index === re.lastIndex) re.lastIndex += 1; // guard against zero-width
       if (timedOut(timer)) return true;
@@ -554,6 +555,7 @@ function extractHerestrings(
   const fromPattern = (re: RegExp): boolean => {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: canonical regex-walk `while ((m = re.exec()) !== null)` idiom
     while ((m = re.exec(command)) !== null) {
       if (m.index === re.lastIndex) re.lastIndex += 1;
       if (timedOut(timer)) return true;
@@ -688,6 +690,7 @@ function extractHeredocs(
 
   HEREDOC_EXTRACTOR.lastIndex = 0;
   let cap: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: canonical regex-walk `while ((cap = exec()) !== null)` idiom
   while ((cap = HEREDOC_EXTRACTOR.exec(command)) !== null) {
     if (cap.index === HEREDOC_EXTRACTOR.lastIndex)
       HEREDOC_EXTRACTOR.lastIndex += 1;
