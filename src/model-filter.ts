@@ -25,13 +25,21 @@ export function shouldGuardrailModel(
   // accidental shielding. The guard must be unambiguous about which model id a
   // rule applies to.
 
-  // Blacklist takes precedence.
-  if (config.modelBlacklist?.includes(modelId)) {
+  // Blacklist takes precedence. Array.isArray (not just truthy/optional-chain)
+  // so a misconfigured non-array value can't reach `.includes()` and throw —
+  // defense in depth even though loadGuardConfig already coerces these to arrays.
+  if (
+    Array.isArray(config.modelBlacklist) &&
+    config.modelBlacklist.includes(modelId)
+  ) {
     return false;
   }
 
   // If a whitelist is specified, only guardrail models on it.
-  if (config.modelWhitelist && config.modelWhitelist.length > 0) {
+  if (
+    Array.isArray(config.modelWhitelist) &&
+    config.modelWhitelist.length > 0
+  ) {
     return config.modelWhitelist.includes(modelId);
   }
 
