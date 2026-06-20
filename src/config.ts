@@ -2,8 +2,16 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { cicdPack } from "./engine/packs/cicd.ts";
+import { containersPack } from "./engine/packs/containers.ts";
 import { coreFilesystemPack } from "./engine/packs/core-filesystem.ts";
 import { coreGitPack } from "./engine/packs/core-git.ts";
+import { infrastructurePack } from "./engine/packs/infrastructure.ts";
+import { kubernetesPack } from "./engine/packs/kubernetes.ts";
+import { packageManagersPack } from "./engine/packs/package-managers.ts";
+import { platformPack } from "./engine/packs/platform.ts";
+import { remotePack } from "./engine/packs/remote.ts";
+import { systemPack } from "./engine/packs/system.ts";
 import { buildRegistry, type Registry } from "./engine/registry.ts";
 import type { EvaluateOptions } from "./engine/types.ts";
 import {
@@ -105,10 +113,22 @@ export async function loadGuardConfig(
     {},
   );
 
-  // The registry is fixed for Phase 2 (the core floor packs). External pack
-  // loading is a later phase; we deliberately do NOT read arbitrary packs from
-  // config yet, so the deterministic floor is always the same.
-  const registry = buildRegistry([coreGitPack, coreFilesystemPack]);
+  // Built-in pack registry. Declaration order is load-bearing for cross-pack
+  // attribution (strictest-wins ties break by order): the core floor packs first,
+  // then the breadth packs. Loading arbitrary EXTERNAL packs from config is a
+  // later phase; this built-in set is always present.
+  const registry = buildRegistry([
+    coreGitPack,
+    coreFilesystemPack,
+    systemPack,
+    packageManagersPack,
+    containersPack,
+    kubernetesPack,
+    infrastructurePack,
+    remotePack,
+    platformPack,
+    cicdPack,
+  ]);
 
   return {
     registry,
