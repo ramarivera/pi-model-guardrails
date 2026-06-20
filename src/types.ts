@@ -225,3 +225,57 @@ export interface ToolCall {
   toolName: string;
   input: Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 deterministic-guard runtime config.
+//
+// `loadGuardConfig` (src/config.ts) deep-merges layered JSON(C) into the runtime
+// objects the deterministic guard actually consumes: a built Registry, a
+// resolved PolicyConfig, a MachineConfig, engine EvaluateOptions, telemetry, and
+// optional model filters. These are RUNTIME objects (compiled RegExp in the
+// registry, resolved policy), distinct from the on-disk wire shape below.
+// ---------------------------------------------------------------------------
+
+/**
+ * The wire (on-disk) shape of the Phase 2 guardrails config. Everything is
+ * optional; missing fields fall back to defaultPolicyConfig()/defaultMachineConfig()
+ * and the default core packs. Kept hand-validated (no zod) to avoid new deps.
+ */
+export interface GuardConfigFile {
+  /** Engine evaluation tunables (input cap, per-match budget). */
+  evaluate?: {
+    inputMaxLength?: number;
+    perMatchBudgetMs?: number;
+  };
+  /** Policy engine config (defaultMode/inviolable/rules/constraints/allowlist). */
+  policy?: PolicyConfigFile;
+  /** State-machine tunables (streaks, cooldown, gating). */
+  machine?: Partial<MachineConfigFile>;
+  /** Local observability/telemetry config (shared with the legacy loader shape). */
+  observability?: GuardrailsObservabilityConfig;
+  /** Models that should be guardrailed (reserved for the future LLM layer). */
+  modelWhitelist?: string[];
+  /** Models that should NOT be guardrailed (reserved for the future LLM layer). */
+  modelBlacklist?: string[];
+}
+
+/** Wire shape for the policy engine config (maps 1:1 onto PolicyConfig). */
+export interface PolicyConfigFile {
+  defaultMode?: "deny" | "warn" | "log" | "allow";
+  observeUntil?: number;
+  inviolable?: string[];
+  rules?: Record<string, "deny" | "warn" | "log" | "allow">;
+  constraints?: unknown[];
+  allowlist?: unknown[];
+}
+
+/** Wire shape for the state machine config (maps 1:1 onto MachineConfig). */
+export interface MachineConfigFile {
+  watchCleanStreak: number;
+  gatedCleanStreak: number;
+  recoveringWatermark: number;
+  cooldownTurns: number;
+  gateOnlyMutatingInWatch: boolean;
+  nonTrivialOnly: boolean;
+  haltRequiresHumanAck: boolean;
+}

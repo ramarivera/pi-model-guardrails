@@ -1,26 +1,34 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { analyzeForViolation } from "./analyzer.ts";
-import { loadConfig } from "./config.ts";
-import { shouldGuardrailModel } from "./model-filter.ts";
+// Pi extension entry point — Phase 2 deterministic guard.
+//
+// Thin glue around guardToolCall() (the pure engine+policy+state-machine core in
+// src/guard.ts). This file is ALL the Pi-specific wiring: event handlers, state
+// persistence via the session-entry API, and steering injection. No LLM grader
+// is involved in Phase 2 — guardToolCall is called WITHOUT a grader, and the
+// state machine's "gate-required" action maps to allow (see guard.ts).
+//
+// Real Pi API used (verified against
+//   node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.d.ts):
+//   - ExtensionAPI / ExtensionFactory: default export is `(pi: ExtensionAPI) => void`.
+//   - pi.on("session_start" | "tool_call" | "before_agent_start", handler).
+//   - pi.appendEntry<T>(customType, data): persist a CustomEntry (not sent to LLM).
+//   - ctx.cwd, ctx.ui.setStatus / ctx.ui.notify, ctx.sessionManager.getEntries().
+//   - ToolCallEventResult { block?: boolean; reason?: string }: the BLOCK shape.
+//   - BeforeAgentStartEventResult { systemPrompt?: string }: steering injection.
+
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+  ToolCallEvent,
+} from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import { loadGuardConfig } from "./config.ts";
+import { type GuardDeps, guardToolCall } from "./guard.ts";
 import {
   createNoopTelemetry,
-  createTelemetry,
   type GuardrailsTelemetry,
 } from "./observability.ts";
-import { checkPatternRules } from "./pattern-rules.ts";
-import {
-  describeActiveToolContract,
-  extractToolContracts,
-  mergeToolContracts,
-  shouldBlockToolCall,
-} from "./tool-guard.ts";
-import { TurnTracker } from "./turn-tracker.ts";
-import type {
-  ActiveToolContract,
-  GuardrailsConfig,
-  MessageEntry,
-  Violation,
-} from "./types.ts";
+import { initialState } from "./state/machine.ts";
+import type { CallMeta, GuardState, PersistedState } from "./state/types.ts";
 
 export type ExtensionInfo = {
   name: string;
@@ -30,7 +38,8 @@ export type ExtensionInfo = {
 export const extensionInfo: ExtensionInfo = {
   name: "model-guardrails",
   description:
-    "Opinionated model guardrails that detect instruction violations and course-correct",
+    "Deterministic model guardrails: blocks destructive commands and arms a " +
+    "deviation state machine that gates a degraded session until it is provably back on track",
 };
 
 export function createExtension() {
@@ -42,616 +51,270 @@ export function createExtension() {
   };
 }
 
+/** Session-entry customType used to persist the deviation-machine state on resume. */
+export const GUARD_STATE_ENTRY_TYPE = "model-guardrails:state";
+
+/** Tools that mutate the workspace (writes / arbitrary execution). */
+const MUTATING_TOOLS = new Set(["bash", "write", "edit"]);
+/** Pure read/no-op tools — never advance the recovery streak, never mutate. */
+const TRIVIAL_TOOLS = new Set(["read", "grep", "find", "ls"]);
+
 export default function guardrailsExtension(pi: ExtensionAPI): void {
-  let config: GuardrailsConfig;
-  let turnTracker: TurnTracker;
+  // Per-session runtime. session_start (re)builds all of it.
+  let deps: GuardDeps | undefined;
   let telemetry: GuardrailsTelemetry = createNoopTelemetry();
-  const messages: MessageEntry[] = [];
-  let activeToolContracts: ActiveToolContract[] = [];
-  let isAnalyzing = false;
+  let state: PersistedState = initialState();
+  let modelWhitelist: string[] | undefined;
+  let modelBlacklist: string[] | undefined;
 
   pi.on("session_start", async (event, ctx) => {
-    config = await loadConfig(ctx.cwd);
-    telemetry = createTelemetry(ctx.cwd, config.observability);
+    const config = await loadGuardConfig(ctx.cwd);
+    telemetry = config.observability;
+    deps = {
+      registry: config.registry,
+      policy: config.policy,
+      machineConfig: config.machineConfig,
+      evaluateOptions: config.evaluateOptions,
+    };
+    modelWhitelist = config.modelWhitelist;
+    modelBlacklist = config.modelBlacklist;
 
-    await telemetry.runSpan(
-      "Guardrails.session_start",
-      contextTags(ctx, {
-        reason: event.reason,
-        observabilityEnabled: telemetry.enabled,
-        logFile: telemetry.logFile,
-      }),
-      async () => {
-        turnTracker = new TurnTracker(config.samplingInterval ?? 1);
-        messages.length = 0;
-        activeToolContracts = [];
-        isAnalyzing = false;
+    // Rehydrate the deviation state from the latest persisted session entry, so
+    // a degraded session that was resumed/forked stays degraded (the machine's
+    // stateEpoch defends against a fork "resetting" an armed session).
+    state = rehydrateState(ctx) ?? initialState();
 
-        await telemetry.logEvent("config_loaded", {
-          samplingInterval: config.samplingInterval,
-          confidenceThreshold: config.confidenceThreshold,
-          toolGuardsEnabled: config.toolGuards.enabled,
-          blockedTools: config.toolGuards.blockedTools ?? [],
-          blockedPatterns: config.toolGuards.blockedPatterns ?? [],
-          explicitToolContractsEnabled:
-            config.toolGuards.explicitToolContractsEnabled,
-          providerMismatchMode: config.toolGuards.providerMismatchMode,
-          patternRulesEnabled: config.patternRulesEnabled,
-          patternRuleCount: config.patternRules.length,
-          policyRuleCount: config.policyRules.length,
-          analysisModel: config.analysisModel,
+    await telemetry.logEvent("session_start", {
+      cwd: ctx.cwd,
+      reason: event.reason,
+      rehydratedState: state.state,
+      stateEpoch: state.stateEpoch,
+      observabilityEnabled: telemetry.enabled,
+      logFile: telemetry.logFile,
+      modelWhitelist: modelWhitelist ?? [],
+      modelBlacklist: modelBlacklist ?? [],
+    });
+
+    setStatus(ctx, state);
+  });
+
+  pi.on(
+    "tool_call",
+    // Return type inferred from the pi.on("tool_call") overload
+    // (ToolCallEventResult | undefined). No explicit annotation needed.
+    async (event, ctx) => {
+      // The deterministic guard only adjudicates shell commands in Phase 2.
+      // Non-bash tools pass through (allow). (The deviation machine still cares
+      // about mutating/trivial classification, but only bash carries a command
+      // string to evaluate.) TODO(Phase 3): route non-bash mutating tools
+      // through the LLM grader once degraded-mode grading lands.
+      if (!isToolCallEventType("bash", event)) {
+        await telemetry.logEvent("tool_call_passthrough", {
+          toolName: toolNameOf(event),
+          reason: "non_bash_tool_phase2_passthrough",
         });
+        return;
+      }
 
-        ctx.ui.notify("Model Guardrails loaded", "info");
-        ctx.ui.setStatus(
-          "guardrails",
-          telemetry.enabled ? "🔒 observing" : "🔒 loaded",
-        );
-      },
-    );
-  });
+      const command = event.input.command;
+      if (!deps) {
+        // session_start always runs first in practice; if not, fail OPEN (we
+        // have no config to make a safe decision) but say so loudly.
+        await telemetry.logEvent("tool_call_no_config", {
+          toolName: "bash",
+          reason: "deps_unset_before_session_start",
+        });
+        return;
+      }
 
-  pi.on("session_shutdown", async (event, ctx) => {
-    await telemetry.logEvent(
-      "session_shutdown",
-      contextTags(ctx, {
-        reason: event.reason,
-        targetSessionFile: event.targetSessionFile,
-        trackedMessages: messages.length,
-      }),
-    );
-  });
+      const meta = callMeta("bash");
+      // Phase 2: NO grader. guardToolCall is called WITHOUT one; the machine's
+      // "gate-required" action maps to allow inside guard.ts so a degraded
+      // session never wedges. TODO(Phase 3): pass `grader` here once the LLM
+      // degraded-mode grader is wired in.
+      const outcome = guardToolCall({ command, meta, state }, deps);
 
-  pi.on("before_agent_start", async (event, ctx) => {
-    await telemetry.runSpan(
-      "Guardrails.before_agent_start",
-      contextTags(ctx, {
-        promptLength: event.prompt.length,
-        imageCount: event.images?.length ?? 0,
-        systemPromptLength: event.systemPrompt.length,
-        selectedTools: event.systemPromptOptions.selectedTools,
-        skillCount: event.systemPromptOptions.skills?.length ?? 0,
-        contextFileCount: event.systemPromptOptions.contextFiles?.length ?? 0,
-      }),
-      async () => undefined,
-    );
-  });
+      const previousState = state.state;
+      state = outcome.nextState;
+      // Persist to a session entry (survives resume/fork via pi.appendEntry) only
+      // on a MEANINGFUL transition (state/epoch/streak change), NOT on every call
+      // — appending per-call would bloat the session file (the v0.1.7 write-only
+      // events.jsonl problem). Rehydrate always takes the latest persisted state.
+      if (outcome.transitioned) {
+        persistState(pi, state);
+      }
 
-  pi.on("agent_start", async (_event, ctx) => {
-    await telemetry.logEvent(
-      "agent_start",
-      contextTags(ctx, {
-        trackedMessages: messages.length,
-      }),
-    );
-  });
+      await telemetry.logEvent("tool_call_decision", {
+        toolName: "bash",
+        command: previewCommand(command),
+        action: outcome.action,
+        block: outcome.block,
+        reason: outcome.reason,
+        ruleId: outcome.verdict.ruleId,
+        severity: outcome.verdict.severity,
+        inviolable: outcome.verdict.inviolable,
+        fromState: previousState,
+        toState: state.state,
+        stateEpoch: state.stateEpoch,
+        transitioned: outcome.transitioned,
+      });
 
-  pi.on("agent_end", async (event, ctx) => {
-    await telemetry.logEvent(
-      "agent_end",
-      contextTags(ctx, {
-        agentMessageCount: event.messages.length,
-        trackedMessages: messages.length,
-      }),
-    );
-  });
+      if (state.state !== previousState) {
+        setStatus(ctx, state);
+      }
 
-  pi.on("turn_start", async (event, ctx) => {
-    await telemetry.logEvent(
-      "turn_start",
-      contextTags(ctx, {
-        turnIndex: event.turnIndex,
-        timestamp: event.timestamp,
-      }),
-    );
-  });
+      if (outcome.block) {
+        // The steer string is the model-facing reason (it explains what to do
+        // instead); fall back to the raw reason. This is what reaches the model.
+        const reason =
+          outcome.steer ?? outcome.reason ?? "Blocked by model guardrails.";
+        ctx.ui.notify(`Guardrails blocked: ${reason}`, "error");
+        return { block: true, reason };
+      }
 
-  pi.on("turn_end", async (event, ctx) => {
-    await telemetry.logEvent(
-      "turn_end",
-      contextTags(ctx, {
-        turnIndex: event.turnIndex,
-        toolResultCount: event.toolResults.length,
-        messageRole: event.message.role,
-        messageContent: describeContent(messageContent(event.message)),
-      }),
-    );
-  });
-
-  pi.on("message_start", async (event, ctx) => {
-    await telemetry.runSpan(
-      "Guardrails.message_start",
-      contextTags(ctx, {
-        role: event.message.role,
-        content: describeContent(messageContent(event.message)),
-      }),
-      async () => {
-        if (event.message.role === "user") {
-          const content = contentToString(messageContent(event.message));
-          messages.push({
-            role: event.message.role,
-            content,
-          });
-
-          const extractedContracts = extractToolContracts(
-            content,
-            config.toolGuards,
-          );
-          if (extractedContracts.length > 0) {
-            activeToolContracts = mergeToolContracts(
-              activeToolContracts,
-              extractedContracts,
-            );
-          }
-
-          await telemetry.logEvent("message_tracked", {
-            role: event.message.role,
-            contentLength: content.length,
-            trackedMessages: messages.length,
-            extractedToolContracts: extractedContracts.map(
-              describeActiveToolContract,
-            ),
-            activeToolContracts: activeToolContracts.map(
-              describeActiveToolContract,
-            ),
-          });
-        }
-      },
-    );
-  });
-
-  pi.on("message_update", async (event, ctx) => {
-    if (!config?.observability?.logMessageUpdates) {
       return;
+    },
+  );
+
+  pi.on(
+    "before_agent_start",
+    // Return type inferred from the pi.on("before_agent_start") overload
+    // (BeforeAgentStartEventResult | undefined). No explicit annotation needed.
+    async (_event, _ctx) => {
+      // When armed (any non-COMPLIANT state), inject a steering note into the
+      // system prompt every turn so the model knows it is in degraded/halted
+      // mode and what it must do to recover. COMPLIANT sessions inject nothing.
+      if (state.state === "COMPLIANT") {
+        return;
+      }
+
+      const note = steeringNote(state);
+      await telemetry.logEvent("before_agent_start_steer", {
+        state: state.state,
+        stateEpoch: state.stateEpoch,
+        armedReason: state.armedReason,
+      });
+      return { systemPrompt: note };
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers.
+// ---------------------------------------------------------------------------
+
+/** Build the per-call metadata the deviation machine consumes. */
+function callMeta(toolName: string): CallMeta {
+  return {
+    toolName,
+    isMutating: MUTATING_TOOLS.has(toolName),
+    isTrivial: TRIVIAL_TOOLS.has(toolName),
+  };
+}
+
+/** Persist the current deviation state to a session entry (survives resume/fork). */
+function persistState(pi: ExtensionAPI, state: PersistedState): void {
+  // pi.appendEntry writes a CustomEntry { type:"custom", customType, data }.
+  // It is intentionally NOT sent to the LLM (it's pure extension state).
+  pi.appendEntry<PersistedState>(GUARD_STATE_ENTRY_TYPE, state);
+}
+
+/**
+ * Scan the session entries for the LATEST persisted guard state and return it.
+ * Mirrors goal-integration.ts: filter CustomEntry by customType, take the last.
+ * Returns undefined when there is no prior state (a fresh session).
+ */
+function rehydrateState(ctx: ExtensionContext): PersistedState | undefined {
+  const entries = readEntries(ctx);
+  let latest: PersistedState | undefined;
+  for (const entry of entries) {
+    const candidate = entry as {
+      type?: string;
+      customType?: string;
+      data?: unknown;
+    };
+    if (
+      candidate?.type === "custom" &&
+      candidate?.customType === GUARD_STATE_ENTRY_TYPE &&
+      isPersistedState(candidate.data)
+    ) {
+      latest = candidate.data;
     }
-
-    await telemetry.logEvent(
-      "message_update",
-      contextTags(ctx, {
-        role: event.message.role,
-        content: describeContent(messageContent(event.message)),
-        assistantMessageEventKeys: Object.keys(
-          event.assistantMessageEvent ?? {},
-        ),
-      }),
-    );
-  });
-
-  pi.on("message_end", async (event, ctx) =>
-    telemetry.runSpan(
-      "Guardrails.message_end",
-      contextTags(ctx, {
-        role: event.message.role,
-        content: describeContent(messageContent(event.message)),
-        isAnalyzing,
-      }),
-      async () => {
-        if (event.message.role !== "assistant") {
-          await telemetry.logEvent("message_end_skipped", {
-            reason: "non_assistant_message",
-            role: event.message.role,
-          });
-          return;
-        }
-
-        const content = contentToString(messageContent(event.message));
-        messages.push({
-          role: "assistant",
-          content,
-        });
-        const assistantMessage = event.message as typeof event.message & {
-          role: "assistant";
-        };
-
-        const modelId = modelIdentifier(ctx);
-        const modelGuarded = shouldGuardrailModel(modelId, config);
-        await telemetry.logEvent("model_filter_checked", {
-          modelId,
-          guarded: modelGuarded,
-          whitelist: config.modelWhitelist ?? [],
-          blacklist: config.modelBlacklist ?? [],
-        });
-        if (!modelGuarded) {
-          return;
-        }
-
-        const sampled = turnTracker.recordTurn();
-        await telemetry.logEvent("sampling_checked", {
-          sampled,
-          turnCount: turnTracker.getTurnCount(),
-          samplingInterval: config.samplingInterval ?? 1,
-        });
-        if (!sampled) {
-          return;
-        }
-
-        const patternViolations =
-          config.patternRulesEnabled &&
-          config.patternRules &&
-          config.patternRules.length > 0
-            ? checkPatternRules(config.patternRules, messages)
-            : [];
-        await telemetry.logEvent("pattern_rules_checked", {
-          enabled: config.patternRulesEnabled,
-          ruleCount: config.patternRules.length,
-          violationCount: patternViolations.length,
-          violations: patternViolations.map(describeViolation),
-        });
-
-        if (isAnalyzing) {
-          await telemetry.logEvent("analysis_skipped", {
-            reason: "analysis_already_running",
-          });
-          return;
-        }
-
-        isAnalyzing = true;
-        try {
-          const llmViolation = await telemetry.runSpan(
-            "Guardrails.analyze",
-            {
-              analysisModel: config.analysisModel,
-              trackedMessages: messages.length,
-              policyRuleCount: config.policyRules.length,
-            },
-            async () => analyzeForViolation(config, messages, ctx),
-          );
-          const allViolations: Violation[] = [
-            ...patternViolations,
-            ...(llmViolation ? [llmViolation] : []),
-          ];
-
-          await telemetry.logEvent("analysis_completed", {
-            llmViolation: llmViolation ? describeViolation(llmViolation) : null,
-            totalViolationCount: allViolations.length,
-            violations: allViolations.map(describeViolation),
-          });
-
-          if (allViolations.length > 0) {
-            const primary = allViolations[0];
-            const ruleNames = allViolations
-              .map((v) => v.violatedInstruction)
-              .join("; ");
-            ctx.ui.notify(
-              `Guardrails: ${primary.correctionMessage}`,
-              "warning",
-            );
-            ctx.ui.setStatus(
-              "guardrails",
-              `⚠️ ${ruleNames.slice(0, 40)}${ruleNames.length > 40 ? "..." : ""}`,
-            );
-
-            const correctedText = buildCorrectedMessage(content, allViolations);
-            const correctedContent = [
-              { type: "text" as const, text: correctedText },
-            ];
-            await telemetry.logEvent("assistant_message_corrected", {
-              correctedContentLength: correctedText.length,
-              primaryViolation: describeViolation(primary),
-            });
-            return {
-              message: {
-                ...assistantMessage,
-                content: correctedContent,
-              },
-            };
-          }
-        } catch (error) {
-          await telemetry.logEvent("analysis_error", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          console.warn("[guardrails] Analysis error:", error);
-        } finally {
-          isAnalyzing = false;
-        }
-
-        return;
-      },
-    ),
-  );
-
-  pi.on("before_provider_request", async (event, ctx) => {
-    await telemetry.logEvent(
-      "before_provider_request",
-      contextTags(ctx, {
-        payloadKeys: objectKeys(event.payload),
-      }),
-    );
-  });
-
-  pi.on("after_provider_response", async (event, ctx) => {
-    await telemetry.logEvent(
-      "after_provider_response",
-      contextTags(ctx, {
-        status: event.status,
-        headerKeys: Object.keys(event.headers ?? {}),
-      }),
-    );
-  });
-
-  pi.on("tool_execution_start", async (event, ctx) => {
-    await telemetry.logEvent(
-      "tool_execution_start",
-      contextTags(ctx, {
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        args: sanitizeToolInput(event.args),
-      }),
-    );
-  });
-
-  pi.on("tool_execution_update", async (event, ctx) => {
-    await telemetry.logEvent(
-      "tool_execution_update",
-      contextTags(ctx, {
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        args: sanitizeToolInput(event.args),
-        partialResult: describeUnknown(event.partialResult),
-      }),
-    );
-  });
-
-  pi.on("tool_call", async (event, ctx) =>
-    telemetry.runSpan(
-      "Guardrails.tool_call",
-      contextTags(ctx, {
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        input: sanitizeToolInput(event.input),
-      }),
-      async () => {
-        if (!config?.toolGuards?.enabled) {
-          await telemetry.logEvent("tool_guard_skipped", {
-            reason: "tool_guards_disabled_or_config_missing",
-            toolName: event.toolName,
-          });
-          return;
-        }
-
-        await telemetry.logEvent("tool_guard_model_filter_bypassed", {
-          reason: "deterministic_tool_guards_apply_to_all_models",
-          toolName: event.toolName,
-          modelId: modelIdentifier(ctx),
-        });
-
-        const blockResult = shouldBlockToolCall(
-          event.toolName,
-          event.input as Record<string, unknown>,
-          config.toolGuards,
-          activeToolContracts,
-        );
-
-        await telemetry.logEvent("tool_guard_decision", {
-          schemaVersion: blockResult.schemaVersion,
-          toolName: event.toolName,
-          decision: blockResult.decision,
-          blocked: blockResult.blocked,
-          reason: blockResult.reason,
-          ruleId: blockResult.ruleId,
-          severity: blockResult.severity,
-          confidence: blockResult.confidence,
-          capability: blockResult.capability,
-          requestedProvider: blockResult.requestedProvider,
-          attemptedProvider: blockResult.attemptedProvider,
-          remediation: blockResult.remediation,
-          invocation: blockResult.invocation,
-          activeToolContracts: activeToolContracts.map(
-            describeActiveToolContract,
-          ),
-          blockedTools: config.toolGuards.blockedTools ?? [],
-          blockedPatterns: config.toolGuards.blockedPatterns ?? [],
-        });
-
-        if (blockResult.blocked) {
-          ctx.ui.notify(
-            `Guardrails blocked tool: ${blockResult.reason}`,
-            "error",
-          );
-          ctx.ui.setStatus("guardrails", "⛔ blocked tool");
-          return { block: true, reason: blockResult.reason };
-        }
-
-        return;
-      },
-    ),
-  );
-
-  pi.on("tool_result", async (event, ctx) => {
-    await telemetry.logEvent(
-      "tool_result",
-      contextTags(ctx, {
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        input: sanitizeToolInput(event.input),
-        isError: event.isError,
-        content: describeContent(event.content),
-        details: describeUnknown(event.details),
-      }),
-    );
-  });
-
-  pi.on("tool_execution_end", async (event, ctx) => {
-    await telemetry.runSpan(
-      "Guardrails.tool_execution_end",
-      contextTags(ctx, {
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        isError: event.isError,
-        result: describeUnknown(event.result),
-      }),
-      async () => {
-        const content = contentToString(event.result.content);
-        messages.push({
-          role: "tool",
-          content,
-          toolName: event.toolName,
-        });
-        await telemetry.logEvent("tool_message_tracked", {
-          toolName: event.toolName,
-          contentLength: content.length,
-          trackedMessages: messages.length,
-        });
-      },
-    );
-  });
-}
-
-function buildCorrectedMessage(
-  original: string,
-  violations: Violation[],
-): string {
-  const correctionHeader = violations
-    .map((v, i) => {
-      const source =
-        v.source === "pattern_rule" ? "[Pattern Rule]" : "[LLM Analysis]";
-      return `${i + 1}. ${source} ${v.violatedInstruction}: ${v.whatModelDid}`;
-    })
-    .join("\n");
-
-  const reasons = violations
-    .map((v) => v.correctionMessage)
-    .filter(Boolean)
-    .join("; ");
-
-  return `${original}
-
----
-
-🔒 **Course corrected** because: ${reasons}
-
-Guardrails detected ${violations.length} violation(s):
-${correctionHeader}
-
-The model should: ${violations[0]?.whatShouldHaveDone ?? "correct the above issues"}
-`;
-}
-
-function messageContent(message: unknown): unknown {
-  return message && typeof message === "object" && "content" in message
-    ? (message as { content: unknown }).content
-    : undefined;
-}
-
-function contentToString(content: unknown): string {
-  return typeof content === "string" ? content : JSON.stringify(content);
-}
-
-function describeContent(content: unknown): Record<string, unknown> {
-  if (typeof content === "string") {
-    return {
-      shape: "string",
-      length: content.length,
-      preview: preview(content),
-    };
   }
-
-  if (Array.isArray(content)) {
-    return {
-      shape: "array",
-      length: content.length,
-      blockTypes: content.map((block) =>
-        block && typeof block === "object" && "type" in block
-          ? String((block as { type: unknown }).type)
-          : typeof block,
-      ),
-      textLength: content
-        .map((block) =>
-          block && typeof block === "object" && "text" in block
-            ? String((block as { text: unknown }).text).length
-            : 0,
-        )
-        .reduce((sum, length) => sum + length, 0),
-      thinkingBlocks: content.filter(
-        (block) =>
-          block &&
-          typeof block === "object" &&
-          "type" in block &&
-          (block as { type: unknown }).type === "thinking",
-      ).length,
-      toolCallBlocks: content.filter(
-        (block) =>
-          block &&
-          typeof block === "object" &&
-          "type" in block &&
-          (block as { type: unknown }).type === "toolCall",
-      ).length,
-    };
-  }
-
-  return describeUnknown(content);
+  return latest;
 }
 
-function describeUnknown(value: unknown): Record<string, unknown> {
-  if (value === null) return { shape: "null" };
-  if (value === undefined) return { shape: "undefined" };
-  if (typeof value === "object") {
-    return {
-      shape: "object",
-      keys: Object.keys(value),
-    };
-  }
-  return {
-    shape: typeof value,
-    preview: preview(String(value)),
+function readEntries(ctx: ExtensionContext): unknown[] {
+  const sm = ctx.sessionManager as {
+    getEntries?: () => unknown[];
+    getBranch?: () => unknown[];
   };
+  return sm?.getEntries?.() ?? sm?.getBranch?.() ?? [];
 }
 
-function describeViolation(violation: Violation): Record<string, unknown> {
-  return {
-    source: violation.source,
-    confidence: violation.confidence,
-    violatedInstruction: violation.violatedInstruction,
-    correctionMessage: violation.correctionMessage,
-  };
-}
+const GUARD_STATES: ReadonlySet<GuardState> = new Set<GuardState>([
+  "COMPLIANT",
+  "WATCH",
+  "GATED",
+  "RECOVERING",
+  "HALTED",
+]);
 
-function contextTags(
-  ctx: {
-    cwd?: string;
-    model?: { provider?: string; id?: string };
-    sessionManager?: { getSessionFile?: () => string | undefined };
-  },
-  tags: Record<string, unknown>,
-): Record<string, unknown> {
-  return {
-    cwd: ctx.cwd,
-    modelId: modelIdentifier(ctx),
-    sessionFile: ctx.sessionManager?.getSessionFile?.(),
-    ...tags,
-  };
-}
-
-function modelIdentifier(ctx: {
-  model?: { provider?: string; id?: string };
-}): string | undefined {
-  if (!ctx.model?.id) return undefined;
-  return ctx.model.provider
-    ? `${ctx.model.provider}/${ctx.model.id}`
-    : ctx.model.id;
-}
-
-function sanitizeToolInput(input: unknown): unknown {
-  if (!input || typeof input !== "object") return input;
-  const redactedKeys = new Set([
-    "apiKey",
-    "api_key",
-    "token",
-    "password",
-    "secret",
-  ]);
-  return Object.fromEntries(
-    Object.entries(input as Record<string, unknown>).map(([key, value]) => [
-      key,
-      redactedKeys.has(key) ? "[redacted]" : value,
-    ]),
+function isPersistedState(value: unknown): value is PersistedState {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Partial<PersistedState>;
+  return (
+    typeof v.state === "string" &&
+    GUARD_STATES.has(v.state as GuardState) &&
+    typeof v.cleanStreak === "number" &&
+    typeof v.stateEpoch === "number" &&
+    typeof v.cooldownRemaining === "number"
   );
 }
 
-function objectKeys(value: unknown): string[] {
-  return value && typeof value === "object" ? Object.keys(value) : [];
+/** The steering note injected each turn while armed. */
+function steeringNote(state: PersistedState): string {
+  const mode = state.state === "HALTED" ? "HALTED" : "degraded";
+  const reason = state.armedReason ? ` Reason: ${state.armedReason}` : "";
+  if (state.state === "HALTED") {
+    return (
+      `[model-guardrails] This session is HALTED on an inviolable constraint.${reason} ` +
+      "Stop attempting destructive actions. The halt cannot be cleared by any " +
+      "tool call — a human must acknowledge it out-of-band before work continues."
+    );
+  }
+  return (
+    `[model-guardrails] You are in ${mode} mode (state: ${state.state}).${reason} ` +
+    "Every tool call is being scrutinized. Do exactly what corrects the specific " +
+    "violation above and nothing risky; clean, on-track calls will return the " +
+    "session to compliant."
+  );
 }
 
-function preview(value: string): string {
-  return value.length > 240 ? `${value.slice(0, 240)}…` : value;
+/** Reflect the current state into the footer status bar. */
+function setStatus(ctx: ExtensionContext, state: PersistedState): void {
+  ctx.ui.setStatus("guardrails", statusLabel(state));
+}
+
+function statusLabel(state: PersistedState): string {
+  switch (state.state) {
+    case "COMPLIANT":
+      return "🔒 compliant";
+    case "WATCH":
+      return "👀 watch";
+    case "GATED":
+      return "⛔ gated";
+    case "RECOVERING":
+      return "♻️ recovering";
+    case "HALTED":
+      return "🛑 halted";
+  }
+}
+
+function toolNameOf(event: ToolCallEvent): string {
+  return event.toolName;
+}
+
+function previewCommand(command: string): string {
+  return command.length > 240 ? `${command.slice(0, 240)}…` : command;
 }
