@@ -260,3 +260,40 @@ test("podman: unrelated commands no match (podman_unrelated_commands_no_match)",
   assertAllows("ls -la");
   assertAllows("git status");
 });
+
+// ---------------------------------------------------------------------------
+// ReDoS regression (gemini PR review): the docker safe patterns used
+// `(?:\s+[^;&|`$()]*)*$`, where `\s+` and `[^…]*` both match spaces under a
+// `*` — catastrophic backtracking on a near-match that fails the end anchor.
+// Fixed to `(?:\s+[^;&|`$()\s]+)*\s*$` (disjoint). This input would hang for
+// seconds pre-fix; it must now resolve effectively instantly AND the normal
+// allow-cases must be unchanged.
+// ---------------------------------------------------------------------------
+
+test("docker: safe pattern is ReDoS-resilient (direct regex timing)", () => {
+  const docPs = containersPack.safePatterns.find((r) => r.name === "docker-ps");
+  assert.ok(docPs, "docker-ps safe pattern exists");
+  // A long run of spaces, then a class-EXCLUDED char ")" that defeats the `$`
+  // anchor. The OLD `(?:\s+[^;&|`$()]*)*$` re-partitions the spaces ~2^40 ways
+  // (hangs for many seconds); the fixed `(?:\s+[^;&|`$()\s]+)*\s*$` is linear.
+  // Tested on the regex directly so segmentation/normalization can't mask it.
+  const evil = `docker ps ${" ".repeat(40)})`;
+  const start = Date.now();
+  const matched = docPs.re.test(evil);
+  const elapsed = Date.now() - start;
+  assert.equal(matched, false, "the adversarial input is not a safe match");
+  assert.ok(elapsed < 500, `docker-ps regex backtracked (${elapsed}ms)`);
+});
+
+test("docker: ReDoS fix preserves normal safe-form behavior", () => {
+  for (const cmd of [
+    "docker ps",
+    "docker ps -a",
+    "docker images --all",
+    "docker --context prod ps",
+    "docker build -t app .",
+    "docker compose --dry-run up",
+  ]) {
+    assertAllows(cmd);
+  }
+});

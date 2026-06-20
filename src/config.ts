@@ -137,9 +137,20 @@ export async function loadGuardConfig(
     evaluateOptions: toEvaluateOptions(merged.evaluate),
     observability: toTelemetry(cwd, merged.observability),
     grader: toGraderConfig(merged.grader),
-    modelWhitelist: merged.modelWhitelist,
-    modelBlacklist: merged.modelBlacklist,
+    modelWhitelist: toStringArray(merged.modelWhitelist),
+    modelBlacklist: toStringArray(merged.modelBlacklist),
   };
+}
+
+/**
+ * Coerce an untrusted config value to a string[] or undefined. A misconfigured
+ * `modelWhitelist`/`modelBlacklist` (a string, number, object, …) would
+ * otherwise reach `shouldGuardrailModel` and throw on `.includes()`, crashing
+ * the guard. Non-arrays => undefined; arrays are filtered to string elements.
+ */
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((v): v is string => typeof v === "string");
 }
 
 /** Default grader runtime config (the documented Phase 3 defaults). */
