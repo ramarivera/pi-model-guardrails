@@ -245,7 +245,7 @@ const destructivePatterns: DestructiveRule[] = [
   },
   {
     name: "reset-merge",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*reset\s+--merge/,
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*reset\s+(?:[^\s&;|`()<>]+\s+)*--merge/,
     severity: "high",
     reason: "git reset --merge can lose uncommitted changes.",
     explanation:

@@ -162,15 +162,47 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
     // Return type inferred from the pi.on("tool_call") overload
     // (ToolCallEventResult | undefined). No explicit annotation needed.
     async (event, ctx) => {
-      // The deterministic guard only adjudicates shell commands in Phase 2.
-      // Non-bash tools pass through (allow). (The deviation machine still cares
-      // about mutating/trivial classification, but only bash carries a command
-      // string to evaluate.) TODO(Phase 3): route non-bash mutating tools
-      // through the LLM grader once degraded-mode grading lands.
+      // The deterministic ENGINE only adjudicates shell commands (only bash
+      // carries a command to evaluate). But the deviation STATE still applies to
+      // non-bash tools — otherwise a write/edit could mutate the workspace while
+      // the session is HALTED or degraded, breaking the "HALTED is terminal"
+      // invariant. So before the bash-only engine path:
+      //   - HALTED  => block EVERY tool call (terminal until human ack).
+      //   - armed + MUTATING non-bash (write/edit) => hold it. We can't grade a
+      //     non-command tool yet (Phase 3 TODO: route these through the grader),
+      //     so degraded mode holds them deterministically rather than waving
+      //     them through ungated.
+      // Trivial read-only non-bash tools pass through in any state.
       if (!isToolCallEventType("bash", event)) {
+        const tn = toolNameOf(event);
+        if (state.state === "HALTED") {
+          const reason =
+            "Session is HALTED on an inviolable constraint. All tool calls are " +
+            "blocked until a human clears it (/guardrails-clear-halt).";
+          await telemetry.logEvent("tool_call_blocked_non_bash", {
+            toolName: tn,
+            state: state.state,
+            reason: "halted_blocks_all_tools",
+          });
+          ctx.ui.notify(`Guardrails blocked: ${reason}`, "error");
+          return { block: true, reason };
+        }
+        if (state.state !== "COMPLIANT" && MUTATING_TOOLS.has(tn)) {
+          const reason =
+            `Degraded mode (state: ${state.state}): mutating tool "${tn}" is held ` +
+            "until the session is provably back on track. Make clean, on-track " +
+            "shell calls to recover.";
+          await telemetry.logEvent("tool_call_blocked_non_bash", {
+            toolName: tn,
+            state: state.state,
+            reason: "degraded_holds_mutating_non_bash",
+          });
+          ctx.ui.notify(`Guardrails blocked: ${reason}`, "error");
+          return { block: true, reason };
+        }
         await telemetry.logEvent("tool_call_passthrough", {
-          toolName: toolNameOf(event),
-          reason: "non_bash_tool_phase2_passthrough",
+          toolName: tn,
+          reason: "non_bash_tool_passthrough",
         });
         return;
       }

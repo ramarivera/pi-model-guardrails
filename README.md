@@ -11,7 +11,7 @@ The deterministic guard is the hard floor: it cannot be downgraded by config or 
 
 Every `bash` tool call flows through one pipeline:
 
-```
+```text
 command
   │
   ▼
@@ -68,7 +68,7 @@ Properties that hold by construction:
 
 `HALTED` is deliberately terminal **for the model**: an inviolable-constraint breach cannot be cleared by any tool call, graded or not. The escape hatch is a human:
 
-```
+```text
 /guardrails-clear-halt
 ```
 
@@ -116,7 +116,9 @@ Config is layered: a global file is merged with a per-project file (project wins
       }
     ],
     "allowlist": [
-      { "rule": "core.filesystem:rm-rf-general", "reason": "scratch dir cleanup", "ttl": 3600, "paths": ["/tmp/build"] }
+      // ttl is an ABSOLUTE expiry as a Unix epoch in MILLISECONDS (the entry is
+      // inert once Date.now() >= ttl); omit it for no expiry.
+      { "rule": "core.filesystem:rm-rf-general", "reason": "scratch dir cleanup", "ttl": 1893456000000, "paths": ["/tmp/build"] }
     ]
   },
 
