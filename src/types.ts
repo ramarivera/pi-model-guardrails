@@ -253,10 +253,56 @@ export interface GuardConfigFile {
   machine?: Partial<MachineConfigFile>;
   /** Local observability/telemetry config (shared with the legacy loader shape). */
   observability?: GuardrailsObservabilityConfig;
+  /** Phase 3 LLM degraded-mode grader config. */
+  grader?: GraderConfigFile;
   /** Models that should be guardrailed (reserved for the future LLM layer). */
   modelWhitelist?: string[];
   /** Models that should NOT be guardrailed (reserved for the future LLM layer). */
   modelBlacklist?: string[];
+}
+
+/**
+ * Wire shape for the Phase 3 grader. Everything is optional; missing fields fall
+ * back to the documented defaults in defaultGraderConfig(). Secrets are read from
+ * env (apiKeyEnv / baseUrlEnv) — never stored inline.
+ */
+export interface GraderConfigFile {
+  /** Whether degraded-mode grading runs at all. Default true. */
+  enabled?: boolean;
+  /** Grader model id (Pi registry id or "provider/model-id"). Default "gemini-3.5-flash". */
+  model?: string;
+  /** Optional fallback model id when the primary isn't in the registry. */
+  fallbackModel?: string;
+  /** Optional OpenAI-compatible base URL override. */
+  baseUrl?: string;
+  /** Env var name to read the base URL from (overrides baseUrl when set). */
+  baseUrlEnv?: string;
+  /** Env var name to read the api key from. Never store the key inline. */
+  apiKeyEnv?: string;
+  /** Hard per-attempt wall-clock budget in ms. Default 8000. */
+  timeoutMs?: number;
+  /** Max tokens for the verdict completion. Default 512. */
+  maxTokens?: number;
+  /** Bounded retries before fail-toward-gate. Default 1. */
+  maxRetries?: number;
+  /** Sampling temperature. Default 0.1. */
+  temperature?: number;
+  /** Whether to cache verdicts by (tool, args, constraints, epoch). Default true. */
+  cache?: boolean;
+}
+
+/** Resolved runtime grader config (env already read, defaults applied). */
+export interface GraderConfig {
+  enabled: boolean;
+  model: string;
+  fallbackModel?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  timeoutMs: number;
+  maxTokens: number;
+  maxRetries: number;
+  temperature: number;
+  cache: boolean;
 }
 
 /** Wire shape for the policy engine config (maps 1:1 onto PolicyConfig). */

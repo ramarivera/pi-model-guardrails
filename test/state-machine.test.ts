@@ -277,7 +277,7 @@ test("GATED + clean grade (non-trivial) => RECOVERING at recoveringWatermark", (
     meta: NONTRIVIAL_NONMUTATING,
   });
   assert.equal(r.next.state, "RECOVERING");
-  assert.equal(r.action, "gate-required");
+  assert.equal(r.action, "allow"); // clean grade => the call runs while recovery stages
   assert.equal(r.next.cleanStreak, 0); // reset on promotion
 });
 
@@ -296,7 +296,7 @@ test("GATED + clean trivial grade does NOT advance toward recovery", () => {
   });
   assert.equal(r.next.state, "GATED");
   assert.equal(r.next.cleanStreak, 0);
-  assert.equal(r.action, "gate-required");
+  assert.equal(r.action, "allow"); // clean grade => runs; trivial => no streak advance
 });
 
 test("GATED + dirty grade => stays GATED, streak reset, every call still gated", () => {
@@ -371,7 +371,7 @@ test("RECOVERING needs gatedCleanStreak consecutive clean grades + backOnTrack =
   });
   assert.equal(r3.next.state, "RECOVERING");
   assert.equal(r3.next.cleanStreak, 3);
-  assert.equal(r3.action, "gate-required");
+  assert.equal(r3.action, "allow"); // clean grade runs; full recovery awaits backOnTrack
   // Fourth grade is back-on-track AND streak already met => recover.
   const r4 = step(r3.next, {
     det: CLEAN_DET,
@@ -403,7 +403,7 @@ test("RECOVERING + clean trivial grade does NOT advance the streak", () => {
   });
   assert.equal(r.next.state, "RECOVERING");
   assert.equal(r.next.cleanStreak, 1);
-  assert.equal(r.action, "gate-required");
+  assert.equal(r.action, "allow"); // clean grade runs; trivial => no streak advance
 });
 
 test("RECOVERING + clean but no grader => holds (still grades every call)", () => {

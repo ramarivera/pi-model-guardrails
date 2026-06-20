@@ -21,6 +21,8 @@ import type {
 import { defaultMachineConfig } from "./state/machine.ts";
 import type { MachineConfig } from "./state/types.ts";
 import type {
+  GraderConfig,
+  GraderConfigFile,
   GuardConfigFile,
   GuardrailsConfig,
   GuardrailsObservabilityConfig,
@@ -54,6 +56,8 @@ export interface GuardRuntimeConfig {
   evaluateOptions: EvaluateOptions;
   /** Local telemetry sink (noop when observability disabled). */
   observability: GuardrailsTelemetry;
+  /** Phase 3 LLM degraded-mode grader config (env already resolved). */
+  grader: GraderConfig;
   /** Models to guardrail (reserved for the future LLM layer). */
   modelWhitelist?: string[];
   /** Models to skip (reserved for the future LLM layer). */
@@ -112,8 +116,60 @@ export async function loadGuardConfig(
     machineConfig: toMachineConfig(merged.machine),
     evaluateOptions: toEvaluateOptions(merged.evaluate),
     observability: toTelemetry(cwd, merged.observability),
+    grader: toGraderConfig(merged.grader),
     modelWhitelist: merged.modelWhitelist,
     modelBlacklist: merged.modelBlacklist,
+  };
+}
+
+/** Default grader runtime config (the documented Phase 3 defaults). */
+export function defaultGraderConfig(): GraderConfig {
+  return {
+    enabled: true,
+    model: "gemini-3.5-flash",
+    timeoutMs: 8000,
+    maxTokens: 512,
+    maxRetries: 1,
+    temperature: 0.1,
+    cache: true,
+  };
+}
+
+/**
+ * Map the wire grader block onto the runtime GraderConfig, reading secrets from
+ * env (apiKeyEnv / baseUrlEnv) — never inline. Falls back to defaultGraderConfig
+ * for anything missing/malformed so a broken grader block can't wedge the load.
+ */
+function toGraderConfig(wire: GraderConfigFile | undefined): GraderConfig {
+  const base = defaultGraderConfig();
+  if (!wire) return base;
+
+  const baseUrl =
+    (wire.baseUrlEnv && process.env[wire.baseUrlEnv]) ||
+    wire.baseUrl ||
+    undefined;
+  const apiKey =
+    wire.apiKeyEnv && process.env[wire.apiKeyEnv]
+      ? process.env[wire.apiKeyEnv]
+      : undefined;
+
+  return {
+    enabled: boolOr(wire.enabled, base.enabled),
+    model:
+      typeof wire.model === "string" && wire.model.trim()
+        ? wire.model
+        : base.model,
+    fallbackModel:
+      typeof wire.fallbackModel === "string" && wire.fallbackModel.trim()
+        ? wire.fallbackModel
+        : undefined,
+    baseUrl,
+    apiKey,
+    timeoutMs: numberOr(wire.timeoutMs, base.timeoutMs),
+    maxTokens: numberOr(wire.maxTokens, base.maxTokens),
+    maxRetries: numberOr(wire.maxRetries, base.maxRetries),
+    temperature: numberOr(wire.temperature, base.temperature),
+    cache: boolOr(wire.cache, base.cache),
   };
 }
 

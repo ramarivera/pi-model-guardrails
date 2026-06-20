@@ -15,20 +15,35 @@
 //   - ToolCallEventResult { block?: boolean; reason?: string }: the BLOCK shape.
 //   - BeforeAgentStartEventResult { systemPrompt?: string }: steering injection.
 
+import { complete } from "@earendil-works/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionContext,
   ToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
-import { loadGuardConfig } from "./config.ts";
+import { defaultGraderConfig, loadGuardConfig } from "./config.ts";
+import {
+  type Completer,
+  type GradeCache,
+  type GraderModel,
+  grade,
+  makeCompleter,
+} from "./grade.ts";
 import { type GuardDeps, guardToolCall } from "./guard.ts";
 import {
   createNoopTelemetry,
   type GuardrailsTelemetry,
 } from "./observability.ts";
+import type { Constraint } from "./policy/types.ts";
 import { initialState } from "./state/machine.ts";
-import type { CallMeta, GuardState, PersistedState } from "./state/types.ts";
+import type {
+  CallMeta,
+  GraderSignal,
+  GuardState,
+  PersistedState,
+} from "./state/types.ts";
+import type { GraderConfig } from "./types.ts";
 
 export type ExtensionInfo = {
   name: string;
@@ -54,6 +69,19 @@ export function createExtension() {
 /** Session-entry customType used to persist the deviation-machine state on resume. */
 export const GUARD_STATE_ENTRY_TYPE = "model-guardrails:state";
 
+/**
+ * Test-only completer override. When set, buildCompleter() returns this directly
+ * instead of wiring ctx.modelRegistry + the pi-ai complete() (which needs a real
+ * model + key). Production NEVER sets this — it stays undefined. Exposed so the
+ * extension's grading-enforcement wiring is unit-testable without a live LLM.
+ */
+let completerOverride: Completer | undefined;
+
+/** Install (or clear with undefined) the test-only completer override. */
+export function __setCompleterOverrideForTest(c: Completer | undefined): void {
+  completerOverride = c;
+}
+
 /** Tools that mutate the workspace (writes / arbitrary execution). */
 const MUTATING_TOOLS = new Set(["bash", "write", "edit"]);
 /** Pure read/no-op tools — never advance the recovery streak, never mutate. */
@@ -67,6 +95,16 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
   let modelWhitelist: string[] | undefined;
   let modelBlacklist: string[] | undefined;
 
+  // Phase 3 grader runtime. session_start (re)builds these.
+  let graderConfig: GraderConfig | undefined;
+  let completer: Completer | undefined;
+  // True when grading is REQUIRED (enabled) but no completer could be built
+  // (missing model/key). The gate then FAILS CLOSED rather than waving calls
+  // through ungraded — a degraded session must never go ungated.
+  let graderUnavailable = false;
+  // Verdict cache: (toolName, argsHash, constraintsHash, epoch) -> GraderSignal.
+  let gradeCache: GradeCache | undefined;
+
   pi.on("session_start", async (event, ctx) => {
     const config = await loadGuardConfig(ctx.cwd);
     telemetry = config.observability;
@@ -78,6 +116,23 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
     };
     modelWhitelist = config.modelWhitelist;
     modelBlacklist = config.modelBlacklist;
+
+    // Build the Phase 3 grader completer from config + the Pi model registry
+    // (the same complete()/modelRegistry mechanism src/llm.ts uses — the only
+    // verified way a Pi extension runs its own completion).
+    graderConfig = config.grader;
+    completer = buildCompleter(ctx, config.grader);
+    gradeCache = config.grader.cache ? new Map() : undefined;
+    // If grading is enabled but no completer could be built, the gate fails
+    // CLOSED. Warn LOUD (telemetry + a user-facing notify) so a misconfigured
+    // grader is never silent.
+    graderUnavailable = config.grader.enabled && completer === undefined;
+    if (graderUnavailable) {
+      const msg =
+        `[model-guardrails] grader ENABLED but unavailable (model "${config.grader.model}" ` +
+        "not resolvable / no key). Degraded mode will FAIL CLOSED: gated calls are blocked.";
+      ctx.ui.notify(msg, "error");
+    }
 
     // Rehydrate the deviation state from the latest persisted session entry, so
     // a degraded session that was resumed/forked stays degraded (the machine's
@@ -93,6 +148,10 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
       logFile: telemetry.logFile,
       modelWhitelist: modelWhitelist ?? [],
       modelBlacklist: modelBlacklist ?? [],
+      graderEnabled: config.grader.enabled,
+      graderModel: config.grader.model,
+      graderAvailable: !graderUnavailable && completer !== undefined,
+      graderUnavailable,
     });
 
     setStatus(ctx, state);
@@ -126,13 +185,71 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
         });
         return;
       }
+      const guardDeps = deps;
 
       const meta = callMeta("bash");
-      // Phase 2: NO grader. guardToolCall is called WITHOUT one; the machine's
-      // "gate-required" action maps to allow inside guard.ts so a degraded
-      // session never wedges. TODO(Phase 3): pass `grader` here once the LLM
-      // degraded-mode grader is wired in.
-      const outcome = guardToolCall({ command, meta, state }, deps);
+      // First pass: NO grader. Deterministic deny/halt is enforced here as
+      // before; a clean call in an ARMED state returns action "gate-required"
+      // (guard.ts maps that to block:false in this pass). That is the Phase 3
+      // hook — we must actually grade before letting a gated call run.
+      let outcome = guardToolCall({ command, meta, state }, guardDeps);
+      // True once we have actually run a grade for this call. A post-grade
+      // outcome that is STILL "gate-required" means the gate was not cleared, so
+      // the call must be BLOCKED (the gate is enforcing now, not advisory).
+      let graded = false;
+
+      // Phase 3 enforcement: an armed, clean call is "gate-required". RUN THE
+      // GRADE and re-decide with the verdict so the machine ENFORCES the gate.
+      if (outcome.action === "gate-required") {
+        if (graderUnavailable || completer === undefined) {
+          // FAIL CLOSED: grading is required but unavailable. Block the call
+          // rather than waving a degraded session through ungraded.
+          await telemetry.logEvent("tool_call_grader_unavailable", {
+            toolName: "bash",
+            command: previewCommand(command),
+            state: state.state,
+            stateEpoch: state.stateEpoch,
+          });
+          const reason =
+            "degraded mode: grader unavailable; command held. " +
+            "Configure the grader model/key or clear the guard state out-of-band.";
+          ctx.ui.notify(`Guardrails blocked: ${reason}`, "error");
+          return { block: true, reason };
+        }
+
+        const verdict = await runGrade(
+          command,
+          guardDeps,
+          state,
+          completer,
+          // graderConfig is defined whenever completer is (both set in session_start).
+          graderConfig ?? defaultGraderConfig(),
+          gradeCache,
+          telemetry,
+        );
+        graded = true;
+        // Re-run the decision WITH the grader signal — this is the enforcing
+        // pass: a non-compliant verdict re-arms / holds the gate; a clean one
+        // advances recovery.
+        outcome = guardToolCall(
+          { command, meta, state, grader: verdict },
+          guardDeps,
+        );
+
+        await telemetry.logEvent("tool_call_graded", {
+          toolName: "bash",
+          command: previewCommand(command),
+          compliant: verdict.compliant,
+          backOnTrack: verdict.backOnTrack,
+          confidence: verdict.confidence,
+          violatedConstraintId: verdict.violatedConstraintId,
+          graderReason: verdict.reason,
+          action: outcome.action,
+          block: outcome.block,
+          fromState: state.state,
+          toState: outcome.nextState.state,
+        });
+      }
 
       const previousState = state.state;
       state = outcome.nextState;
@@ -163,11 +280,21 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
         setStatus(ctx, state);
       }
 
-      if (outcome.block) {
+      // A post-grade outcome that is STILL "gate-required" means the grade did
+      // NOT clear the gate (non-compliant / not-yet-recovered). Enforce it: the
+      // call is held. This is the teeth Phase 2 lacked — without grading,
+      // gate-required mapped to allow; after grading it blocks until recovered.
+      const gateHeld = graded && outcome.action === "gate-required";
+
+      if (outcome.block || gateHeld) {
         // The steer string is the model-facing reason (it explains what to do
         // instead); fall back to the raw reason. This is what reaches the model.
         const reason =
-          outcome.steer ?? outcome.reason ?? "Blocked by model guardrails.";
+          outcome.steer ??
+          outcome.reason ??
+          (gateHeld
+            ? "Held in degraded mode: the grade did not clear the gate."
+            : "Blocked by model guardrails.");
         ctx.ui.notify(`Guardrails blocked: ${reason}`, "error");
         return { block: true, reason };
       }
@@ -210,6 +337,148 @@ function callMeta(toolName: string): CallMeta {
     isMutating: MUTATING_TOOLS.has(toolName),
     isTrivial: TRIVIAL_TOOLS.has(toolName),
   };
+}
+
+/**
+ * Build the production grader completer by adapting ctx.modelRegistry + the
+ * pi-ai complete() function into makeCompleter()'s structural config. This is the
+ * SAME mechanism src/llm.ts uses (findModel by id/provider-id, getApiKeyAndHeaders,
+ * complete()) — the only verified way a Pi extension runs its own completion.
+ *
+ * Returns undefined when grading is disabled OR no completer can be built (no
+ * model id / model not in registry). The caller treats undefined as
+ * "grader unavailable" and fails closed for gated calls.
+ */
+function buildCompleter(
+  ctx: ExtensionContext,
+  cfg: GraderConfig,
+): Completer | undefined {
+  if (!cfg.enabled) return undefined;
+
+  // Test seam: a unit test can inject a fake completer (no live LLM / registry).
+  if (completerOverride !== undefined) return completerOverride;
+
+  const registry = ctx.modelRegistry as
+    | ExtensionContext["modelRegistry"]
+    | undefined;
+  // No model registry on this ctx (e.g. a minimal/test harness) => no completer.
+  // The caller treats undefined as "grader unavailable" and fails closed.
+  if (!registry || typeof registry.getAll !== "function") return undefined;
+
+  const findModel = (id: string | undefined): GraderModel | undefined => {
+    if (!id) return undefined;
+    const all = registry.getAll();
+    return all.find((m) => m.id === id || `${m.provider}/${m.id}` === id);
+  };
+
+  return makeCompleter({
+    model: cfg.model,
+    fallbackModel: cfg.fallbackModel,
+    temperature: cfg.temperature,
+    maxTokens: cfg.maxTokens,
+    baseUrl: cfg.baseUrl,
+    apiKey: cfg.apiKey,
+    findModel,
+    getAuth: async (model) => {
+      // model came from registry.getAll(), so the cast is sound at runtime.
+      const auth = await registry.getApiKeyAndHeaders(
+        model as Parameters<typeof registry.getApiKeyAndHeaders>[0],
+      );
+      return auth.ok
+        ? { ok: true, apiKey: auth.apiKey, headers: auth.headers }
+        : { ok: false, error: auth.error };
+    },
+    complete: async (model, context, options) => {
+      const result = await complete(
+        model as Parameters<typeof complete>[0],
+        context as Parameters<typeof complete>[1],
+        options as Parameters<typeof complete>[2],
+      );
+      return {
+        content: result.content as Array<{ type: string; text?: string }>,
+      };
+    },
+  });
+}
+
+/**
+ * Run ONE degraded-mode grade for a bash command. Pulls the active project
+ * constraints from policy and recent actions from telemetry, then calls grade()
+ * (which owns the timeout / retry / fail-toward-gate / cache logic). The returned
+ * GraderSignal is fed back into guardToolCall to enforce the gate.
+ */
+async function runGrade(
+  command: string,
+  guardDeps: GuardDeps,
+  state: PersistedState,
+  completer: Completer,
+  graderConfig: GraderConfig,
+  cache: GradeCache | undefined,
+  telemetry: GuardrailsTelemetry,
+): Promise<GraderSignal> {
+  const activeConstraints = relevantConstraints(guardDeps.policy.constraints);
+  const recentActions = recentActionStrings(telemetry);
+
+  return grade(
+    {
+      command,
+      toolName: "bash",
+      activeConstraints,
+      violatedConstraintId: state.violatedConstraintId,
+      recentActions,
+      stateEpoch: state.stateEpoch,
+    },
+    {
+      complete: completer,
+      timeoutMs: graderConfig.timeoutMs,
+      maxTokens: graderConfig.maxTokens,
+      maxRetries: graderConfig.maxRetries,
+      temperature: graderConfig.temperature,
+      cache,
+    },
+  );
+}
+
+/**
+ * Pick the constraints worth putting in the grade prompt: inviolable + high
+ * first, then the rest. Keeps the prompt focused (and token-bounded) on the
+ * obligations that actually matter in degraded mode.
+ */
+function relevantConstraints(constraints: Constraint[]): Constraint[] {
+  if (constraints.length === 0) return [];
+  const rank = (c: Constraint): number => {
+    switch (c.severity) {
+      case "inviolable":
+        return 5;
+      case "critical":
+        return 4;
+      case "high":
+        return 3;
+      case "medium":
+        return 2;
+      case "low":
+        return 1;
+      default:
+        return 0;
+    }
+  };
+  return [...constraints].sort((a, b) => rank(b) - rank(a)).slice(0, 12);
+}
+
+/** Compact recent telemetry events into short strings for grade context. */
+function recentActionStrings(telemetry: GuardrailsTelemetry): string[] {
+  const events = telemetry.recent(12);
+  const out: string[] = [];
+  for (const e of events) {
+    if (e.name !== "tool_call_decision" && e.name !== "tool_call_graded") {
+      continue;
+    }
+    const tags = e.tags ?? {};
+    const cmd = typeof tags.command === "string" ? tags.command : "";
+    const action = typeof tags.action === "string" ? tags.action : "";
+    if (cmd) out.push(`${action || e.name}: ${cmd}`);
+  }
+  return out;
 }
 
 /** Persist the current deviation state to a session entry (survives resume/fork). */

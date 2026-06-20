@@ -358,8 +358,8 @@ function fromGated(
     };
   }
 
-  // Clean. We need an actual grader confirmation to advance toward recovery.
-  // Without a grader yet (Phase 2, or the grade hasn't run), HOLD: gate-required.
+  // Clean. Without a grader yet (the pre-grade first pass), HOLD: "gate-required"
+  // tells the caller to run the grade and re-decide with the verdict.
   if (grader === undefined) {
     return {
       next: current,
@@ -369,13 +369,13 @@ function fromGated(
     };
   }
 
-  // Trivial/read-only clean grades do NOT advance the recovery streak.
+  // Grader confirmed CLEAN => the gate PASSES, so this call is ALLOWED to run.
+  // The grade IS the gate: a compliant call runs in degraded mode (only a
+  // non-compliant grade / timeout / unavailable grader HOLDS it), while the
+  // recovery streak advances. Trivial/read-only clean grades run but do NOT
+  // advance the streak.
   if (!counts) {
-    return {
-      next: current,
-      action: "gate-required",
-      transitioned: false,
-    };
+    return { next: current, action: "allow", transitioned: false };
   }
 
   const nextStreak = current.cleanStreak + 1;
@@ -390,15 +390,15 @@ function fromGated(
         violatedConstraintId:
           grader.violatedConstraintId ?? current.violatedConstraintId,
       }),
-      action: "gate-required",
-      reason: "One clean grade: staging recovery (still grading every call).",
+      action: "allow",
+      reason: "Clean grade: call allowed, staging recovery (still grading every call).",
       transitioned: true,
     };
   }
 
   return {
     next: { ...current, cleanStreak: nextStreak },
-    action: "gate-required",
+    action: "allow",
     transitioned: nextStreak !== current.cleanStreak,
   };
 }
@@ -439,7 +439,7 @@ function fromRecovering(
     };
   }
 
-  // Clean but no grader => HOLD (we still grade every call in RECOVERING).
+  // Clean but no grader => HOLD (pre-grade first pass; the caller must grade).
   if (grader === undefined) {
     return {
       next: current,
@@ -449,13 +449,10 @@ function fromRecovering(
     };
   }
 
-  // Trivial clean grades don't advance the streak.
+  // Grader confirmed CLEAN => the call is ALLOWED to run (the grade is the gate).
+  // Trivial clean grades run but don't advance the recovery streak.
   if (!counts) {
-    return {
-      next: current,
-      action: "gate-required",
-      transitioned: false,
-    };
+    return { next: current, action: "allow", transitioned: false };
   }
 
   const nextStreak = current.cleanStreak + 1;
@@ -478,10 +475,12 @@ function fromRecovering(
     };
   }
 
-  // Streak met but grader hasn't confirmed backOnTrack yet: keep grading.
+  // Clean grade, but not yet fully recovered (streak short, or backOnTrack not
+  // yet confirmed). The call still runs (clean grade => allow); recovery keeps
+  // accruing and every call stays graded until COMPLIANT.
   return {
     next: { ...current, cleanStreak: nextStreak },
-    action: "gate-required",
+    action: "allow",
     reason:
       nextStreak >= config.gatedCleanStreak
         ? "Streak met; awaiting grader back-on-track confirmation."

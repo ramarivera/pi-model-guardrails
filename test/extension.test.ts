@@ -11,10 +11,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import extension, {
+  __setCompleterOverrideForTest,
   createExtension,
   extensionInfo,
   GUARD_STATE_ENTRY_TYPE,
 } from "../src/extension.ts";
+import type { Completer } from "../src/grade.ts";
 
 type Handler = (event: unknown, ctx: unknown) => unknown;
 
@@ -209,6 +211,189 @@ test("persists state to a session entry that survives resume", async () => {
   const afterResume = await fireToolCall(pi2, ctx2, "ls -la");
   assert.ok(afterResume, "a halted session blocks even clean calls");
   assert.equal(afterResume.block, true);
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 — the LLM grading gate makes degraded mode ENFORCING.
+// We inject a stubbed completer (no live LLM) via the test seam and assert that
+// a GATED clean call is actually graded and enforced.
+// ---------------------------------------------------------------------------
+
+const COMPLIANT_VERDICT = JSON.stringify({
+  compliant: true,
+  backOnTrack: true,
+  confidence: 0.95,
+  reasoning: "Clean, on-track call.",
+});
+
+const DIRTY_VERDICT = JSON.stringify({
+  compliant: false,
+  backOnTrack: false,
+  confidence: 0.95,
+  reasoning: "Still off track.",
+  remediation: "Fix the violation.",
+});
+
+function stubCompleter(reply: string): Completer {
+  return async () => reply;
+}
+
+async function gateTheSession(pi: FakePi, ctx: FakeCtx): Promise<void> {
+  // A high-severity (non-critical) command blocks and arms GATED.
+  const result = await fireToolCall(pi, ctx, "git restore file.txt");
+  assert.ok(result?.block, "git restore should block and arm GATED");
+}
+
+test("Phase 3: a GATED clean call WITH a compliant grader advances recovery", async () => {
+  __setCompleterOverrideForTest(stubCompleter(COMPLIANT_VERDICT));
+  try {
+    const pi = createFakePi();
+    extension(pi as never);
+    const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    const ctx = createFakeCtx(cwd, pi.entries);
+    await startSession(pi, ctx);
+
+    await gateTheSession(pi, ctx);
+
+    // Clean call while GATED: graded compliant. The grade IS the gate, so a
+    // compliant call is ALLOWED to run, and the clean grade advances
+    // GATED -> RECOVERING (recoveringWatermark=1). Only a non-compliant grade
+    // (next test) holds the call.
+    const graded = await fireToolCall(pi, ctx, "echo hello world");
+    assert.ok(!graded?.block, "a compliant-graded call runs (not held)");
+
+    const stateEntries = pi.entries.filter(
+      (e) => e.customType === GUARD_STATE_ENTRY_TYPE,
+    );
+    const last = stateEntries[stateEntries.length - 1].data as {
+      state: string;
+    };
+    assert.equal(
+      last.state,
+      "RECOVERING",
+      "a compliant grade advanced GATED -> RECOVERING",
+    );
+  } finally {
+    __setCompleterOverrideForTest(undefined);
+  }
+});
+
+test("Phase 3: a GATED clean call WITH a non-compliant grader stays blocked/gated", async () => {
+  __setCompleterOverrideForTest(stubCompleter(DIRTY_VERDICT));
+  try {
+    const pi = createFakePi();
+    extension(pi as never);
+    const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    const ctx = createFakeCtx(cwd, pi.entries);
+    await startSession(pi, ctx);
+
+    await gateTheSession(pi, ctx);
+
+    // Clean-looking call while GATED, but the grader says non-compliant: the gate
+    // HOLDS — the call is blocked and the session stays GATED.
+    const graded = await fireToolCall(pi, ctx, "echo hello world");
+    assert.ok(graded?.block, "a non-compliant grade blocks the call");
+
+    const stateEntries = pi.entries.filter(
+      (e) => e.customType === GUARD_STATE_ENTRY_TYPE,
+    );
+    const last = stateEntries[stateEntries.length - 1].data as {
+      state: string;
+    };
+    assert.equal(last.state, "GATED", "stays GATED on a dirty grade");
+  } finally {
+    __setCompleterOverrideForTest(undefined);
+  }
+});
+
+test("Phase 3: graderUnavailable FAILS CLOSED — gated clean call is blocked", async () => {
+  // No completer override and the fake ctx has no modelRegistry, so the grader is
+  // unavailable. A gated clean call must be BLOCKED (fail closed), not allowed.
+  __setCompleterOverrideForTest(undefined);
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries);
+  await startSession(pi, ctx);
+
+  // session_start warned loud about the unavailable grader.
+  assert.ok(
+    ctx.ui.notifications.some(
+      (n) => n.type === "error" && /grader/i.test(n.message),
+    ),
+    "session_start warns when an enabled grader is unavailable",
+  );
+
+  await gateTheSession(pi, ctx);
+
+  const held = await fireToolCall(pi, ctx, "echo hello world");
+  assert.ok(held?.block, "fail closed: gated clean call is blocked");
+  assert.match(held.reason ?? "", /grader unavailable/i);
+});
+
+test("Phase 3: full recovery — enough compliant grades clear the gate to COMPLIANT", async () => {
+  __setCompleterOverrideForTest(stubCompleter(COMPLIANT_VERDICT));
+  try {
+    const pi = createFakePi();
+    extension(pi as never);
+    const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    const ctx = createFakeCtx(cwd, pi.entries);
+    await startSession(pi, ctx);
+
+    await gateTheSession(pi, ctx);
+
+    // GATED -> RECOVERING (1 clean grade), then RECOVERING needs gatedCleanStreak=3
+    // consecutive clean grades + backOnTrack to reach COMPLIANT. The cache must NOT
+    // short-circuit these (each distinct command is a fresh grade), so vary them.
+    const cmds = [
+      "echo a", // GATED -> RECOVERING
+      "echo b", // streak 1
+      "echo c", // streak 2
+      "echo d", // streak 3 + backOnTrack => COMPLIANT (this call runs)
+    ];
+    let lastResult: { block?: boolean } | undefined;
+    for (const c of cmds) {
+      lastResult = await fireToolCall(pi, ctx, c);
+    }
+
+    const stateEntries = pi.entries.filter(
+      (e) => e.customType === GUARD_STATE_ENTRY_TYPE,
+    );
+    const last = stateEntries[stateEntries.length - 1].data as {
+      state: string;
+    };
+    assert.equal(last.state, "COMPLIANT", "recovered to COMPLIANT");
+    assert.equal(
+      lastResult?.block,
+      undefined,
+      "the recovering call that clears the gate is allowed to run",
+    );
+  } finally {
+    __setCompleterOverrideForTest(undefined);
+  }
+});
+
+test("Phase 3: the grader cannot rescue a deterministic block (dangerous call still blocked)", async () => {
+  __setCompleterOverrideForTest(stubCompleter(COMPLIANT_VERDICT));
+  try {
+    const pi = createFakePi();
+    extension(pi as never);
+    const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    const ctx = createFakeCtx(cwd, pi.entries);
+    await startSession(pi, ctx);
+
+    await gateTheSession(pi, ctx);
+
+    // A dangerous command while GATED is blocked deterministically — it never even
+    // reaches the grader (action is "block"/"halt", not "gate-required").
+    const danger = await fireToolCall(pi, ctx, "git push --force");
+    assert.ok(
+      danger?.block,
+      "dangerous call stays blocked despite a clean grader",
+    );
+  } finally {
+    __setCompleterOverrideForTest(undefined);
+  }
 });
 
 test("before_agent_start injects a steering note only when armed", async () => {
