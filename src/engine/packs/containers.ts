@@ -37,48 +37,99 @@ function s(command: string, description: string): Suggestion {
 // ============================================================================
 
 const SYSTEM_PRUNE_SUGGESTIONS: Suggestion[] = [
-  s("docker system df -v", "Preview what would be removed without deleting anything"),
-  s("docker system prune --filter 'until=24h'", "Only removes items older than 24 hours"),
-  s("docker container prune", "Remove only stopped containers (preserves images and volumes)"),
-  s("docker image prune", "Remove only dangling images (preserves containers and volumes)"),
+  s(
+    "docker system df -v",
+    "Preview what would be removed without deleting anything",
+  ),
+  s(
+    "docker system prune --filter 'until=24h'",
+    "Only removes items older than 24 hours",
+  ),
+  s(
+    "docker container prune",
+    "Remove only stopped containers (preserves images and volumes)",
+  ),
+  s(
+    "docker image prune",
+    "Remove only dangling images (preserves containers and volumes)",
+  ),
 ];
 
 const VOLUME_PRUNE_SUGGESTIONS: Suggestion[] = [
-  s("docker volume ls -q -f dangling=true", "List unused volumes first to review what would be deleted"),
-  s("docker volume rm {volume-name}", "Remove specific volumes by name instead of all unused"),
-  s("docker volume inspect {volume-name}", "Inspect volume contents and metadata before removal"),
+  s(
+    "docker volume ls -q -f dangling=true",
+    "List unused volumes first to review what would be deleted",
+  ),
+  s(
+    "docker volume rm {volume-name}",
+    "Remove specific volumes by name instead of all unused",
+  ),
+  s(
+    "docker volume inspect {volume-name}",
+    "Inspect volume contents and metadata before removal",
+  ),
 ];
 
 const NETWORK_PRUNE_SUGGESTIONS: Suggestion[] = [
   s("docker network ls", "List all networks to review before pruning"),
-  s("docker network rm {network-name}", "Remove specific networks by name instead of all unused"),
+  s(
+    "docker network rm {network-name}",
+    "Remove specific networks by name instead of all unused",
+  ),
 ];
 
 const IMAGE_PRUNE_SUGGESTIONS: Suggestion[] = [
-  s("docker images -f dangling=true", "List dangling images first to see what would be removed"),
+  s(
+    "docker images -f dangling=true",
+    "List dangling images first to see what would be removed",
+  ),
   s("docker rmi {image-id}", "Remove specific images by ID or tag"),
 ];
 
 const CONTAINER_PRUNE_SUGGESTIONS: Suggestion[] = [
-  s("docker ps -a -f status=exited", "List stopped containers first to review before removal"),
-  s("docker rm {container-id}", "Remove specific containers instead of all stopped"),
+  s(
+    "docker ps -a -f status=exited",
+    "List stopped containers first to review before removal",
+  ),
+  s(
+    "docker rm {container-id}",
+    "Remove specific containers instead of all stopped",
+  ),
 ];
 
 const RM_FORCE_SUGGESTIONS: Suggestion[] = [
-  s("docker stop {container} && docker rm {container}", "Graceful shutdown with SIGTERM before removal"),
-  s("docker container prune", "Remove stopped containers with confirmation prompt"),
+  s(
+    "docker stop {container} && docker rm {container}",
+    "Graceful shutdown with SIGTERM before removal",
+  ),
+  s(
+    "docker container prune",
+    "Remove stopped containers with confirmation prompt",
+  ),
   s("docker ps -a | grep {container}", "Check container status before removal"),
 ];
 
 const RMI_FORCE_SUGGESTIONS: Suggestion[] = [
-  s("docker rmi {image}", "Remove without force - fails safely if image is in use"),
+  s(
+    "docker rmi {image}",
+    "Remove without force - fails safely if image is in use",
+  ),
   s("docker image prune", "Remove only dangling (untagged) images"),
-  s("docker ps -a --filter ancestor={image}", "Check what containers are using the image first"),
+  s(
+    "docker ps -a --filter ancestor={image}",
+    "Check what containers are using the image first",
+  ),
 ];
 
 const VOLUME_RM_SUGGESTIONS: Suggestion[] = [
-  s("docker volume inspect {volume}", "Inspect volume metadata and mount point before removal"),
-  s("docker run --rm -v {volume}:/data alpine ls -la /data", "List volume contents before deletion"),
+  s(
+    "docker volume inspect {volume}",
+    "Inspect volume metadata and mount point before removal",
+  ),
+  s(
+    "docker run --rm -v {volume}:/data alpine ls -la /data",
+    "List volume contents before deletion",
+  ),
   s(
     "docker run --rm -v {volume}:/data -v $(pwd):/backup alpine tar czf /backup/backup.tar.gz /data",
     "Backup volume data before removal",
@@ -87,8 +138,14 @@ const VOLUME_RM_SUGGESTIONS: Suggestion[] = [
 
 const STOP_ALL_SUGGESTIONS: Suggestion[] = [
   s("docker stop {container-name}", "Stop specific containers by name"),
-  s("docker stop $(docker ps -q -f name={pattern})", "Stop containers matching a name filter"),
-  s("docker ps --format '{{.Names}}: {{.Status}}'", "List running containers before stopping"),
+  s(
+    "docker stop $(docker ps -q -f name={pattern})",
+    "Stop containers matching a name filter",
+  ),
+  s(
+    "docker ps --format '{{.Names}}: {{.Status}}'",
+    "List running containers before stopping",
+  ),
 ];
 
 // ============================================================================
@@ -348,19 +405,52 @@ const PODMAN_VOLUME_RM_EXPLANATION =
 
 const safePatterns: SafeRule[] = [
   // ===== containers.docker safe patterns =====
-  { name: "docker-ps", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ps(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-images", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-logs", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-inspect", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-build", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-pull", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-run", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-exec", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-stats", re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)(?:\s+[^;&|`$()]*)*$/ },
-  { name: "docker-dry-run", re: /^\s*docker\b(?:\s+[^;&|`$()]*)*--dry-run(?:\s+[^;&|`$()]*)*$/ },
+  {
+    name: "docker-ps",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ps(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-images",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-logs",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-inspect",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-build",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-pull",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-run",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-exec",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-stats",
+    re: /^\s*docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)(?:\s+[^;&|`$()]*)*$/,
+  },
+  {
+    name: "docker-dry-run",
+    re: /^\s*docker\b(?:\s+[^;&|`$()]*)*--dry-run(?:\s+[^;&|`$()]*)*$/,
+  },
 
   // ===== containers.compose safe patterns =====
-  { name: "compose-config", re: /(?:docker-compose|docker\s+compose)\s+config/ },
+  {
+    name: "compose-config",
+    re: /(?:docker-compose|docker\s+compose)\s+config/,
+  },
   { name: "compose-ps", re: /(?:docker-compose|docker\s+compose)\s+ps/ },
   { name: "compose-logs", re: /(?:docker-compose|docker\s+compose)\s+logs/ },
   { name: "compose-up", re: /(?:docker-compose|docker\s+compose)\s+up/ },
@@ -373,13 +463,31 @@ const safePatterns: SafeRule[] = [
 
   // ===== containers.podman safe patterns =====
   { name: "podman-ps", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ps(?=\s|$)/ },
-  { name: "podman-images", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)/ },
-  { name: "podman-logs", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)/ },
-  { name: "podman-inspect", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)/ },
-  { name: "podman-build", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)/ },
-  { name: "podman-pull", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)/ },
+  {
+    name: "podman-images",
+    re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)/,
+  },
+  {
+    name: "podman-logs",
+    re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)/,
+  },
+  {
+    name: "podman-inspect",
+    re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)/,
+  },
+  {
+    name: "podman-build",
+    re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)/,
+  },
+  {
+    name: "podman-pull",
+    re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)/,
+  },
   { name: "podman-run", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)/ },
-  { name: "podman-exec", re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)/ },
+  {
+    name: "podman-exec",
+    re: /podman\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -401,14 +509,16 @@ const destructivePatterns: DestructiveRule[] = [
     name: "down-volumes",
     re: /(?:docker-compose|docker\s+compose)\s+down\s+.*(?:-v\b|--volumes)/,
     severity: "critical",
-    reason: "docker-compose down -v removes volumes and their data permanently.",
+    reason:
+      "docker-compose down -v removes volumes and their data permanently.",
     explanation: COMPOSE_DOWN_VOLUMES_EXPLANATION,
   },
   {
     name: "down-rmi-all",
     re: /(?:docker-compose|docker\s+compose)\s+down\s+.*--rmi\s+all/,
     severity: "high",
-    reason: "docker-compose down --rmi all removes all images used by services.",
+    reason:
+      "docker-compose down --rmi all removes all images used by services.",
     explanation: COMPOSE_DOWN_RMI_ALL_EXPLANATION,
   },
   {
@@ -422,7 +532,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "rm-force-compose",
     re: /(?:docker-compose|docker\s+compose)\s+rm\s+.*(?:-f\b|--force)/,
     severity: "medium",
-    reason: "docker-compose rm -f forcibly removes containers without confirmation.",
+    reason:
+      "docker-compose rm -f forcibly removes containers without confirmation.",
     explanation: COMPOSE_RM_FORCE_EXPLANATION,
   },
 
@@ -440,7 +551,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "volume-prune",
     re: /docker\b.*?\bvolume\s+prune/,
     severity: "high",
-    reason: "docker volume prune removes ALL unused volumes and their data permanently.",
+    reason:
+      "docker volume prune removes ALL unused volumes and their data permanently.",
     explanation: VOLUME_PRUNE_EXPLANATION,
     suggestions: VOLUME_PRUNE_SUGGESTIONS,
   },
@@ -456,7 +568,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "image-prune",
     re: /docker\b.*?\bimage\s+prune/,
     severity: "medium",
-    reason: "docker image prune removes unused images. Use 'docker images' to review first.",
+    reason:
+      "docker image prune removes unused images. Use 'docker images' to review first.",
     explanation: IMAGE_PRUNE_EXPLANATION,
     suggestions: IMAGE_PRUNE_SUGGESTIONS,
   },
@@ -472,7 +585,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "rm-force",
     re: /docker\b.*?\brm\s+.*(?:-[a-zA-Z0-9]*f|--force)/,
     severity: "high",
-    reason: "docker rm -f forcibly removes containers, potentially losing data.",
+    reason:
+      "docker rm -f forcibly removes containers, potentially losing data.",
     explanation: DOCKER_RM_FORCE_EXPLANATION,
     suggestions: RM_FORCE_SUGGESTIONS,
   },
@@ -515,7 +629,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "podman-volume-prune",
     re: /podman\b.*?\bvolume\s+prune/,
     severity: "critical",
-    reason: "podman volume prune removes ALL unused volumes and their data permanently.",
+    reason:
+      "podman volume prune removes ALL unused volumes and their data permanently.",
     explanation: PODMAN_VOLUME_PRUNE_EXPLANATION,
   },
   {
@@ -529,7 +644,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "podman-image-prune",
     re: /podman\b.*?\bimage\s+prune/,
     severity: "medium",
-    reason: "podman image prune removes unused images. Use 'podman images' to review first.",
+    reason:
+      "podman image prune removes unused images. Use 'podman images' to review first.",
     explanation: PODMAN_IMAGE_PRUNE_EXPLANATION,
   },
   {
@@ -543,7 +659,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "podman-rm-force",
     re: /podman\b.*?\brm\s+.*(?:-[a-zA-Z0-9]*f|--force)/,
     severity: "high",
-    reason: "podman rm -f forcibly removes containers, potentially losing data.",
+    reason:
+      "podman rm -f forcibly removes containers, potentially losing data.",
     explanation: PODMAN_RM_FORCE_EXPLANATION,
   },
   {

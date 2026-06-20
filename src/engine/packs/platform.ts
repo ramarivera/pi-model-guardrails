@@ -51,35 +51,150 @@ function s(command: string, description: string): Suggestion {
 // ============================================================================
 
 const githubSafe: SafeRule[] = [
-  { name: "gh-repo-list-view", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+(?:list|view)\b/ },
-  { name: "gh-gist-list-view", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+gist\s+(?:list|view)\b/ },
-  { name: "gh-release-list-view", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+release\s+(?:list|view)\b/ },
-  { name: "gh-issue-list-view", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+issue\s+(?:list|view)\b/ },
-  { name: "gh-ssh-key-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+ssh-key\s+list\b/ },
-  { name: "gh-secret-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+secret\s+list\b/ },
-  { name: "gh-variable-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+variable\s+list\b/ },
-  { name: "gh-auth-status", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+auth\s+status\b/ },
-  { name: "gh-status", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+status\b/ },
-  { name: "gh-api-explicit-get", re: /^(?!(?=.*(?:-X\s*|--method(?:=|\s+))DELETE\b))gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/ },
+  {
+    name: "gh-repo-list-view",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+(?:list|view)\b/,
+  },
+  {
+    name: "gh-gist-list-view",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+gist\s+(?:list|view)\b/,
+  },
+  {
+    name: "gh-release-list-view",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+release\s+(?:list|view)\b/,
+  },
+  {
+    name: "gh-issue-list-view",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+issue\s+(?:list|view)\b/,
+  },
+  {
+    name: "gh-ssh-key-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+ssh-key\s+list\b/,
+  },
+  {
+    name: "gh-secret-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+secret\s+list\b/,
+  },
+  {
+    name: "gh-variable-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+variable\s+list\b/,
+  },
+  {
+    name: "gh-auth-status",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+auth\s+status\b/,
+  },
+  {
+    name: "gh-status",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+status\b/,
+  },
+  {
+    name: "gh-api-explicit-get",
+    re: /^(?!(?=.*(?:-X\s*|--method(?:=|\s+))DELETE\b))gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/,
+  },
 ];
 
 const githubDestructive: DestructiveRule[] = [
-  { name: "gh-repo-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+delete\b/, severity: "high", reason: "gh repo delete permanently deletes a GitHub repository. This cannot be undone." },
-  { name: "gh-repo-archive", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+archive\b/, severity: "high", reason: "gh repo archive makes a repository read-only. While reversible, it stops all write access." },
-  { name: "gh-gist-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+gist\s+delete\b/, severity: "high", reason: "gh gist delete permanently deletes a Gist." },
-  { name: "gh-release-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+release\s+delete\b/, severity: "high", reason: "gh release delete permanently deletes a release." },
-  { name: "gh-issue-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+issue\s+delete\b/, severity: "high", reason: "gh issue delete permanently deletes an issue." },
-  { name: "gh-ssh-key-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+ssh-key\s+delete\b/, severity: "high", reason: "gh ssh-key delete removes an SSH key, potentially breaking access." },
-  { name: "gh-secret-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+secret\s+(?:delete|remove)\b/, severity: "high", reason: "gh secret delete removes GitHub Actions secrets." },
-  { name: "gh-variable-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+variable\s+(?:delete|remove)\b/, severity: "high", reason: "gh variable delete removes GitHub Actions variables." },
-  { name: "gh-repo-deploy-key-delete", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+deploy-key\s+delete\b/, severity: "high", reason: "gh repo deploy-key delete removes a deploy key and can break access." },
-  { name: "gh-run-cancel", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+run\s+cancel\b/, severity: "high", reason: "gh run cancel stops a workflow run and may interrupt deployments." },
-  { name: "gh-api-delete-actions-secret", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/actions\/secrets\//, severity: "high", reason: "gh api DELETE actions/secrets removes GitHub Actions secrets." },
-  { name: "gh-api-delete-actions-variable", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/actions\/variables\//, severity: "high", reason: "gh api DELETE actions/variables removes GitHub Actions variables." },
-  { name: "gh-api-delete-hook", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/hooks\//, severity: "high", reason: "gh api DELETE hooks removes repository webhooks." },
-  { name: "gh-api-delete-deploy-key", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/keys\//, severity: "high", reason: "gh api DELETE keys removes deploy keys." },
-  { name: "gh-api-delete-release", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/releases\//, severity: "high", reason: "gh api DELETE releases removes GitHub releases." },
-  { name: "gh-api-delete-repo", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b/, severity: "high", reason: "gh api DELETE calls can be destructive. Please verify the endpoint." },
+  {
+    name: "gh-repo-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+delete\b/,
+    severity: "high",
+    reason:
+      "gh repo delete permanently deletes a GitHub repository. This cannot be undone.",
+  },
+  {
+    name: "gh-repo-archive",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+archive\b/,
+    severity: "high",
+    reason:
+      "gh repo archive makes a repository read-only. While reversible, it stops all write access.",
+  },
+  {
+    name: "gh-gist-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+gist\s+delete\b/,
+    severity: "high",
+    reason: "gh gist delete permanently deletes a Gist.",
+  },
+  {
+    name: "gh-release-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+release\s+delete\b/,
+    severity: "high",
+    reason: "gh release delete permanently deletes a release.",
+  },
+  {
+    name: "gh-issue-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+issue\s+delete\b/,
+    severity: "high",
+    reason: "gh issue delete permanently deletes an issue.",
+  },
+  {
+    name: "gh-ssh-key-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+ssh-key\s+delete\b/,
+    severity: "high",
+    reason:
+      "gh ssh-key delete removes an SSH key, potentially breaking access.",
+  },
+  {
+    name: "gh-secret-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+secret\s+(?:delete|remove)\b/,
+    severity: "high",
+    reason: "gh secret delete removes GitHub Actions secrets.",
+  },
+  {
+    name: "gh-variable-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+variable\s+(?:delete|remove)\b/,
+    severity: "high",
+    reason: "gh variable delete removes GitHub Actions variables.",
+  },
+  {
+    name: "gh-repo-deploy-key-delete",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+repo\s+deploy-key\s+delete\b/,
+    severity: "high",
+    reason:
+      "gh repo deploy-key delete removes a deploy key and can break access.",
+  },
+  {
+    name: "gh-run-cancel",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+run\s+cancel\b/,
+    severity: "high",
+    reason: "gh run cancel stops a workflow run and may interrupt deployments.",
+  },
+  {
+    name: "gh-api-delete-actions-secret",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/actions\/secrets\//,
+    severity: "high",
+    reason: "gh api DELETE actions/secrets removes GitHub Actions secrets.",
+  },
+  {
+    name: "gh-api-delete-actions-variable",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/actions\/variables\//,
+    severity: "high",
+    reason: "gh api DELETE actions/variables removes GitHub Actions variables.",
+  },
+  {
+    name: "gh-api-delete-hook",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/hooks\//,
+    severity: "high",
+    reason: "gh api DELETE hooks removes repository webhooks.",
+  },
+  {
+    name: "gh-api-delete-deploy-key",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/keys\//,
+    severity: "high",
+    reason: "gh api DELETE keys removes deploy keys.",
+  },
+  {
+    name: "gh-api-delete-release",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?repos\/[^/\s]+\/[^/\s]+\/releases\//,
+    severity: "high",
+    reason: "gh api DELETE releases removes GitHub releases.",
+  },
+  {
+    name: "gh-api-delete-repo",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:repo|gist|release|issue|ssh-key|secret|variable|run|auth|status|api)\b)(?:(?:"[^"]*")|(?:'[^']*')|\S+))?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b/,
+    severity: "high",
+    reason:
+      "gh api DELETE calls can be destructive. Please verify the endpoint.",
+  },
 ];
 
 // ============================================================================
@@ -88,12 +203,24 @@ const githubDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const RAILWAY_PROJECT_SUGGESTIONS: Suggestion[] = [
-  s("railway status", "Confirm the currently linked project and environment before any project change"),
-  s("railway list", "List projects to verify the target instead of deleting it"),
+  s(
+    "railway status",
+    "Confirm the currently linked project and environment before any project change",
+  ),
+  s(
+    "railway list",
+    "List projects to verify the target instead of deleting it",
+  ),
 ];
 const RAILWAY_ENVIRONMENT_SUGGESTIONS: Suggestion[] = [
-  s("railway environment list", "List environments and verify that production is not the target"),
-  s("railway status", "Confirm the active project and environment before making changes"),
+  s(
+    "railway environment list",
+    "List environments and verify that production is not the target",
+  ),
+  s(
+    "railway status",
+    "Confirm the active project and environment before making changes",
+  ),
 ];
 const RAILWAY_SERVICE_SUGGESTIONS: Suggestion[] = [
   s("railway service list", "List services before deleting or changing one"),
@@ -101,32 +228,80 @@ const RAILWAY_SERVICE_SUGGESTIONS: Suggestion[] = [
 ];
 const RAILWAY_FUNCTION_SUGGESTIONS: Suggestion[] = [
   s("railway functions list", "List functions before deleting one"),
-  s("railway status", "Confirm the active project and environment before changing functions"),
+  s(
+    "railway status",
+    "Confirm the active project and environment before changing functions",
+  ),
 ];
 const RAILWAY_VOLUME_SUGGESTIONS: Suggestion[] = [
-  s("railway volume list", "List volumes and identify any database storage before changing it"),
-  s("railway status", "Confirm the active project and environment before touching volumes"),
+  s(
+    "railway volume list",
+    "List volumes and identify any database storage before changing it",
+  ),
+  s(
+    "railway status",
+    "Confirm the active project and environment before touching volumes",
+  ),
 ];
 const RAILWAY_VARIABLE_SUGGESTIONS: Suggestion[] = [
-  s("railway variable list", "Review variables before deleting or overwriting them"),
-  s("railway variable list --json", "Capture the current values in a reviewable format before changing secrets"),
+  s(
+    "railway variable list",
+    "Review variables before deleting or overwriting them",
+  ),
+  s(
+    "railway variable list --json",
+    "Capture the current values in a reviewable format before changing secrets",
+  ),
 ];
 const RAILWAY_DEPLOYMENT_SUGGESTIONS: Suggestion[] = [
-  s("railway status", "Confirm the target service and environment before removing deployments"),
+  s(
+    "railway status",
+    "Confirm the target service and environment before removing deployments",
+  ),
   s("railway logs", "Inspect deployment state without stopping or removing it"),
 ];
 
 const railwaySafe: SafeRule[] = [
-  { name: "railway-status", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?:\s|$)/ },
-  { name: "railway-project-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:list|ls)(?:\s|$)/ },
-  { name: "railway-project-subcommand-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+project\s+(?:list|ls)(?:\s|$)/ },
-  { name: "railway-whoami", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?:\s|$)/ },
-  { name: "railway-logs", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?:\s|$)/ },
-  { name: "railway-service-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+(?:list|ls)(?:\s|$)/ },
-  { name: "railway-function-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:function|functions|func|funcs|fn|fns)\s+(?:list|ls)(?:\s|$)/ },
-  { name: "railway-environment-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:environment|env)\s+(?:list|ls)(?:\s|$)/ },
-  { name: "railway-volume-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:list|ls)(?:\s|$)/ },
-  { name: "railway-variable-list", re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:variable|variables|vars|var)\s+(?:list|ls)(?:\s|$)/ },
+  {
+    name: "railway-status",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?:\s|$)/,
+  },
+  {
+    name: "railway-project-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:list|ls)(?:\s|$)/,
+  },
+  {
+    name: "railway-project-subcommand-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+project\s+(?:list|ls)(?:\s|$)/,
+  },
+  {
+    name: "railway-whoami",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?:\s|$)/,
+  },
+  {
+    name: "railway-logs",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?:\s|$)/,
+  },
+  {
+    name: "railway-service-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+(?:list|ls)(?:\s|$)/,
+  },
+  {
+    name: "railway-function-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:function|functions|func|funcs|fn|fns)\s+(?:list|ls)(?:\s|$)/,
+  },
+  {
+    name: "railway-environment-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:environment|env)\s+(?:list|ls)(?:\s|$)/,
+  },
+  {
+    name: "railway-volume-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:list|ls)(?:\s|$)/,
+  },
+  {
+    name: "railway-variable-list",
+    re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:variable|variables|vars|var)\s+(?:list|ls)(?:\s|$)/,
+  },
 ];
 
 // DB-connection variable-name alternation, reused by several railway rules.
@@ -147,7 +322,8 @@ const railwayDestructive: DestructiveRule[] = [
     name: "railway-project-subcommand-delete",
     re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+project\s+(?:delete|remove|rm)(?:\s|$)/,
     severity: "critical",
-    reason: "railway project delete schedules deletion of the entire Railway project.",
+    reason:
+      "railway project delete schedules deletion of the entire Railway project.",
     explanation:
       "Deleting a Railway project can remove every service, database, volume, variable, and deployment attached to it.",
     suggestions: RAILWAY_PROJECT_SUGGESTIONS,
@@ -156,7 +332,8 @@ const railwayDestructive: DestructiveRule[] = [
     name: "railway-environment-delete",
     re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:environment|env)\s+(?:delete|remove|rm)(?:\s|$)/,
     severity: "critical",
-    reason: "railway environment delete removes a Railway environment and its resources.",
+    reason:
+      "railway environment delete removes a Railway environment and its resources.",
     explanation:
       "Deleting an environment can remove production services, database instances, volumes, and variables in that environment.",
     suggestions: RAILWAY_ENVIRONMENT_SUGGESTIONS,
@@ -192,7 +369,8 @@ const railwayDestructive: DestructiveRule[] = [
     name: "railway-volume-detach",
     re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+detach(?:\s|$)/,
     severity: "high",
-    reason: "railway volume detach disconnects persistent storage from a service.",
+    reason:
+      "railway volume detach disconnects persistent storage from a service.",
     explanation:
       "Detaching a volume can take a production database or stateful service offline even when the bytes are not immediately deleted.",
     suggestions: RAILWAY_VOLUME_SUGGESTIONS,
@@ -223,7 +401,8 @@ const railwayDestructive: DestructiveRule[] = [
       `railway(?:\\s+--?\\S+(?:\\s+\\S+)?)*\\s+(?:variable|variables|vars|var)(?:\\s+--?\\S+(?:\\s+\\S+)?)*(?:\\s+--set(?:=|\\s+)|\\s+--set-from-stdin(?:=|\\s+))(?:${RAILWAY_DB_VARS})(?:\\s|=|$)`,
     ),
     severity: "high",
-    reason: "railway variable legacy flags are changing a database connection variable.",
+    reason:
+      "railway variable legacy flags are changing a database connection variable.",
     explanation:
       "Legacy Railway variable flags can still overwrite database connection variables and break production database access.",
     suggestions: RAILWAY_VARIABLE_SUGGESTIONS,
@@ -233,7 +412,8 @@ const railwayDestructive: DestructiveRule[] = [
     re: /railway(?:\s+--?\S+(?:\s+\S+)?)*\s+down(?:\s|$)/,
     severity: "high",
     reason: "railway down removes the latest successful deployment.",
-    explanation: "Removing a deployment can interrupt production service availability.",
+    explanation:
+      "Removing a deployment can interrupt production service availability.",
     suggestions: RAILWAY_DEPLOYMENT_SUGGESTIONS,
   },
   {
@@ -268,7 +448,8 @@ const railwayDestructive: DestructiveRule[] = [
     re: /(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)(?:[^;&|\r\n]|\\\r?\n)*(?:volumeDelete|volumeInstanceDelete)|(?:volumeDelete|volumeInstanceDelete)(?:[^;&|\r\n]|\\\r?\n)*(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)/i,
     severity: "critical",
     reason: "Railway Public API volume deletion mutation detected.",
-    explanation: "Railway GraphQL volume deletion mutations can destroy persistent database storage.",
+    explanation:
+      "Railway GraphQL volume deletion mutations can destroy persistent database storage.",
     suggestions: RAILWAY_VOLUME_SUGGESTIONS,
   },
   {
@@ -293,7 +474,8 @@ const railwayDestructive: DestructiveRule[] = [
     name: "railway-api-volume-backup-schedule-update",
     re: /(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)(?:[^;&|\r\n]|\\\r?\n)*volumeInstanceBackupScheduleUpdate|volumeInstanceBackupScheduleUpdate(?:[^;&|\r\n]|\\\r?\n)*(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)/i,
     severity: "high",
-    reason: "Railway Public API volume backup schedule update mutation detected.",
+    reason:
+      "Railway Public API volume backup schedule update mutation detected.",
     explanation:
       "Changing Railway volume backup schedules can disable or weaken database recovery coverage.",
     suggestions: RAILWAY_VOLUME_SUGGESTIONS,
@@ -320,7 +502,8 @@ const railwayDestructive: DestructiveRule[] = [
     name: "railway-api-variable-collection-replace",
     re: /(?:(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)(?:[^;&|\r\n]|\\\r?\n)*variableCollectionUpsert(?:[^;&|\r\n]|\\\r?\n)*["']?replace["']?[ \t]*:[ \t]*true|(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)(?:[^;&|\r\n]|\\\r?\n)*["']?replace["']?[ \t]*:[ \t]*true(?:[^;&|\r\n]|\\\r?\n)*variableCollectionUpsert|variableCollectionUpsert(?:[^;&|\r\n]|\\\r?\n)*(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)(?:[^;&|\r\n]|\\\r?\n)*["']?replace["']?[ \t]*:[ \t]*true|variableCollectionUpsert(?:[^;&|\r\n]|\\\r?\n)*["']?replace["']?[ \t]*:[ \t]*true(?:[^;&|\r\n]|\\\r?\n)*(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)|["']?replace["']?[ \t]*:[ \t]*true(?:[^;&|\r\n]|\\\r?\n)*(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token)(?:[^;&|\r\n]|\\\r?\n)*variableCollectionUpsert|["']?replace["']?[ \t]*:[ \t]*true(?:[^;&|\r\n]|\\\r?\n)*variableCollectionUpsert(?:[^;&|\r\n]|\\\r?\n)*(?:backboard\.railway\.(?:app|com)|railway\.(?:app|com)\/graphql|RAILWAY_API_(?:URL|TOKEN)|RAILWAY_TOKEN|PROJECT_ACCESS_TOKEN|Project-Access-Token))/i,
     severity: "high",
-    reason: "Railway Public API variableCollectionUpsert with replace=true detected.",
+    reason:
+      "Railway Public API variableCollectionUpsert with replace=true detected.",
     explanation:
       "Railway variableCollectionUpsert with replace=true deletes variables omitted from the payload, which can remove production database credentials even when their names are not present.",
     suggestions: RAILWAY_VARIABLE_SUGGESTIONS,
@@ -332,7 +515,8 @@ const railwayDestructive: DestructiveRule[] = [
       "i",
     ),
     severity: "high",
-    reason: "Railway Public API upsert is changing a database connection variable.",
+    reason:
+      "Railway Public API upsert is changing a database connection variable.",
     explanation:
       "Bulk-upserting Railway variables that include database connection keys can redirect or sever production database access.",
     suggestions: RAILWAY_VARIABLE_SUGGESTIONS,
@@ -353,47 +537,116 @@ const railwayDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const KAMAL_STATUS_SUGGESTIONS: Suggestion[] = [
-  s("kamal details", "Show the current containers across servers before tearing anything down"),
-  s("kamal config", "Confirm which destination/servers the command targets (mind that config prints secrets)"),
+  s(
+    "kamal details",
+    "Show the current containers across servers before tearing anything down",
+  ),
+  s(
+    "kamal config",
+    "Confirm which destination/servers the command targets (mind that config prints secrets)",
+  ),
 ];
 const KAMAL_ACCESSORY_SUGGESTIONS: Suggestion[] = [
-  s("kamal accessory details", "Inspect the accessory (e.g. the database) without removing or stopping it"),
-  s("kamal accessory logs", "Read accessory logs instead of restarting or removing the container"),
+  s(
+    "kamal accessory details",
+    "Inspect the accessory (e.g. the database) without removing or stopping it",
+  ),
+  s(
+    "kamal accessory logs",
+    "Read accessory logs instead of restarting or removing the container",
+  ),
 ];
 const KAMAL_PROXY_SUGGESTIONS: Suggestion[] = [
-  s("kamal proxy details", "Inspect the proxy without removing or rebooting it"),
-  s("kamal proxy reboot --rolling", "If a proxy cycle is truly required, --rolling staggers it to reduce the outage"),
+  s(
+    "kamal proxy details",
+    "Inspect the proxy without removing or rebooting it",
+  ),
+  s(
+    "kamal proxy reboot --rolling",
+    "If a proxy cycle is truly required, --rolling staggers it to reduce the outage",
+  ),
 ];
 const KAMAL_APP_SUGGESTIONS: Suggestion[] = [
-  s("kamal app details", "Inspect app containers without removing or stopping them"),
-  s("kamal app maintenance", "Serve a 503 maintenance page (reversible with `kamal app live`) instead of stopping"),
+  s(
+    "kamal app details",
+    "Inspect app containers without removing or stopping them",
+  ),
+  s(
+    "kamal app maintenance",
+    "Serve a 503 maintenance page (reversible with `kamal app live`) instead of stopping",
+  ),
 ];
 const KAMAL_PRUNE_SUGGESTIONS: Suggestion[] = [
-  s("kamal app containers", "List the deployed containers/images that rollback relies on before pruning"),
-  s("kamal rollback [VERSION]", "Pruning removes older images `kamal rollback` needs; confirm a rollback target still exists"),
+  s(
+    "kamal app containers",
+    "List the deployed containers/images that rollback relies on before pruning",
+  ),
+  s(
+    "kamal rollback [VERSION]",
+    "Pruning removes older images `kamal rollback` needs; confirm a rollback target still exists",
+  ),
 ];
 
 const kamalSafe: SafeRule[] = [
   { name: "kamal-audit", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+audit(?:\s|$)/ },
-  { name: "kamal-details", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+details(?:\s|$)/ },
-  { name: "kamal-config", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?:\s|$)/ },
-  { name: "kamal-secrets", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets(?:\s|$)/ },
-  { name: "kamal-deploy", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+deploy(?:\s|$)/ },
-  { name: "kamal-redeploy", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+redeploy(?:\s|$)/ },
+  {
+    name: "kamal-details",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+details(?:\s|$)/,
+  },
+  {
+    name: "kamal-config",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?:\s|$)/,
+  },
+  {
+    name: "kamal-secrets",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets(?:\s|$)/,
+  },
+  {
+    name: "kamal-deploy",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+deploy(?:\s|$)/,
+  },
+  {
+    name: "kamal-redeploy",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+redeploy(?:\s|$)/,
+  },
   { name: "kamal-setup", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+setup(?:\s|$)/ },
   { name: "kamal-build", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?:\s|$)/ },
-  { name: "kamal-rollback", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+rollback(?:\s|$)/ },
-  { name: "kamal-upgrade", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+upgrade(?:\s|$)/ },
-  { name: "kamal-registry", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+registry\s+(?:login|logout)(?:\s|$)/ },
+  {
+    name: "kamal-rollback",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+rollback(?:\s|$)/,
+  },
+  {
+    name: "kamal-upgrade",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+upgrade(?:\s|$)/,
+  },
+  {
+    name: "kamal-registry",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+registry\s+(?:login|logout)(?:\s|$)/,
+  },
   { name: "kamal-lock", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+lock(?:\s|$)/ },
-  { name: "kamal-server-bootstrap", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+server\s+bootstrap(?:\s|$)/ },
+  {
+    name: "kamal-server-bootstrap",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+server\s+bootstrap(?:\s|$)/,
+  },
   { name: "kamal-init", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+init(?:\s|$)/ },
   { name: "kamal-docs", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+docs(?:\s|$)/ },
   { name: "kamal-help", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+help(?:\s|$)/ },
-  { name: "kamal-version", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?:\s|$)/ },
-  { name: "kamal-app-safe", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+app(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:boot|start|restart|details|containers|images|logs|version|stale_containers|maintenance|live)(?:\s|$)/ },
-  { name: "kamal-accessory-safe", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+accessory(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:boot|start|restart|details|logs|upgrade)(?:\s|$)/ },
-  { name: "kamal-proxy-safe", re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+proxy(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:boot|boot_config|start|restart|details|logs)(?:\s|$)/ },
+  {
+    name: "kamal-version",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?:\s|$)/,
+  },
+  {
+    name: "kamal-app-safe",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+app(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:boot|start|restart|details|containers|images|logs|version|stale_containers|maintenance|live)(?:\s|$)/,
+  },
+  {
+    name: "kamal-accessory-safe",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+accessory(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:boot|start|restart|details|logs|upgrade)(?:\s|$)/,
+  },
+  {
+    name: "kamal-proxy-safe",
+    re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+proxy(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:boot|boot_config|start|restart|details|logs)(?:\s|$)/,
+  },
 ];
 
 const kamalDestructive: DestructiveRule[] = [
@@ -401,7 +654,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-remove",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+remove(?:\s|$)/,
     severity: "critical",
-    reason: "kamal remove tears down the entire deployment, including stateful accessories.",
+    reason:
+      "kamal remove tears down the entire deployment, including stateful accessories.",
     explanation:
       "`kamal remove` removes the app container, kamal-proxy, and all accessory containers " +
       "from the servers and logs out of the registry. Because it removes accessories, it can " +
@@ -419,7 +673,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-accessory-remove",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+accessory(?:\s+--?\S+(?:\s+\S+)?)*\s+remove(?:\s|$)/,
     severity: "critical",
-    reason: "kamal accessory remove deletes the accessory container, image, AND its host data directory.",
+    reason:
+      "kamal accessory remove deletes the accessory container, image, AND its host data directory.",
     explanation:
       "`kamal accessory remove [NAME]` removes the accessory container and image and ALSO " +
       "deletes its data directory from the host. For a database/redis/search accessory this " +
@@ -436,11 +691,12 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-app-remove",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+app(?:\s+--?\S+(?:\s+\S+)?)*\s+remove(?:\s|$)/,
     severity: "high",
-    reason: "kamal app remove takes the app offline by removing its containers and images.",
+    reason:
+      "kamal app remove takes the app offline by removing its containers and images.",
     explanation:
       "`kamal app remove` removes the app containers and images from the servers. The app goes " +
       "offline and the images must be rebuilt or re-pulled before it can serve again. This is " +
-      "a frequent footgun when asked to \"clean up old containers\".\n\n" +
+      'a frequent footgun when asked to "clean up old containers".\n\n' +
       "Safer alternatives:\n" +
       "- kamal app stale_containers: list leftover containers without removing the live app\n" +
       "- kamal prune: remove genuinely old images/containers (still erodes rollback)\n" +
@@ -451,7 +707,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-app-stop",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+app(?:\s+--?\S+(?:\s+\S+)?)*\s+stop(?:\s|$)/,
     severity: "high",
-    reason: "kamal app stop stops the app container, causing an outage until restarted.",
+    reason:
+      "kamal app stop stops the app container, causing an outage until restarted.",
     explanation:
       "`kamal app stop` stops the app container on the servers, causing an outage until " +
       "`kamal app start`. There is no built-in confirmation prompt.\n\n" +
@@ -464,7 +721,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-proxy-remove",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+proxy(?:\s+--?\S+(?:\s+\S+)?)*\s+remove(?:\s|$)/,
     severity: "high",
-    reason: "kamal proxy remove drops routing for every app behind that proxy on the host.",
+    reason:
+      "kamal proxy remove drops routing for every app behind that proxy on the host.",
     explanation:
       "`kamal proxy remove` removes the kamal-proxy container and image. Every app behind that " +
       "proxy on the host loses routing until the proxy is re-booted. There is no confirmation " +
@@ -478,7 +736,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-proxy-reboot",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+proxy(?:\s+--?\S+(?:\s+\S+)?)*\s+reboot(?:\s|$)/,
     severity: "high",
-    reason: "kamal proxy reboot stops, removes, and recreates the proxy, causing a short outage.",
+    reason:
+      "kamal proxy reboot stops, removes, and recreates the proxy, causing a short outage.",
     explanation:
       "`kamal proxy reboot` stops, removes, and starts a new proxy container. It is documented " +
       "to cause a small outage on each server. While it prompts interactively, a non-interactive " +
@@ -492,7 +751,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-proxy-stop",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+proxy(?:\s+--?\S+(?:\s+\S+)?)*\s+stop(?:\s|$)/,
     severity: "high",
-    reason: "kamal proxy stop drops routing for every app behind that proxy until it is started.",
+    reason:
+      "kamal proxy stop drops routing for every app behind that proxy until it is started.",
     explanation:
       "`kamal proxy stop` stops the kamal-proxy container. Every app behind that proxy on the " +
       "host loses routing until `kamal proxy start`/`boot`.\n\n" +
@@ -505,7 +765,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-accessory-reboot",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+accessory(?:\s+--?\S+(?:\s+\S+)?)*\s+reboot(?:\s|$)/,
     severity: "high",
-    reason: "kamal accessory reboot stops, removes, and recreates the accessory container (downtime).",
+    reason:
+      "kamal accessory reboot stops, removes, and recreates the accessory container (downtime).",
     explanation:
       "`kamal accessory reboot [NAME]` stops, removes, and starts a new accessory container, " +
       "causing downtime for that accessory (e.g. the database). Data survives only if a volume " +
@@ -519,7 +780,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-accessory-stop",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+accessory(?:\s+--?\S+(?:\s+\S+)?)*\s+stop(?:\s|$)/,
     severity: "high",
-    reason: "kamal accessory stop stops the accessory (e.g. the database), erroring the app.",
+    reason:
+      "kamal accessory stop stops the accessory (e.g. the database), erroring the app.",
     explanation:
       "`kamal accessory stop [NAME]` stops the accessory container. Stopping the database (or " +
       "cache/search) errors the app until the accessory is restarted, knocking a dependency " +
@@ -533,7 +795,8 @@ const kamalDestructive: DestructiveRule[] = [
     name: "kamal-prune",
     re: /kamal(?:\s+--?\S+(?:\s+\S+)?)*\s+prune(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:all|containers|images)(?:\s|$)/,
     severity: "medium",
-    reason: "kamal prune removes older images/containers that kamal rollback relies on.",
+    reason:
+      "kamal prune removes older images/containers that kamal rollback relies on.",
     explanation:
       "`kamal prune all` prunes unused images and stopped containers, `kamal prune containers` " +
       "prunes stopped containers except the last n (default 5), and `kamal prune images` prunes " +
@@ -551,26 +814,62 @@ const kamalDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const MODAL_APP_SUGGESTIONS: Suggestion[] = [
-  s("modal app list", "List Modal apps to confirm the target before stopping it"),
-  s("modal app logs <app>", "Inspect app state without terminating its containers"),
-  s("modal app rollback <app> <version>", "Roll back to a previous deploy instead of stopping the app"),
+  s(
+    "modal app list",
+    "List Modal apps to confirm the target before stopping it",
+  ),
+  s(
+    "modal app logs <app>",
+    "Inspect app state without terminating its containers",
+  ),
+  s(
+    "modal app rollback <app> <version>",
+    "Roll back to a previous deploy instead of stopping the app",
+  ),
 ];
 const MODAL_CONTAINER_SUGGESTIONS: Suggestion[] = [
-  s("modal container list", "List running Modal containers before terminating one"),
-  s("modal container logs <container_id>", "Inspect a container without stopping it"),
+  s(
+    "modal container list",
+    "List running Modal containers before terminating one",
+  ),
+  s(
+    "modal container logs <container_id>",
+    "Inspect a container without stopping it",
+  ),
 ];
 const MODAL_ENVIRONMENT_SUGGESTIONS: Suggestion[] = [
-  s("modal environment list", "List Modal environments to verify you are not deleting prod"),
-  s("modal environment update", "Update an environment in place instead of deleting it"),
+  s(
+    "modal environment list",
+    "List Modal environments to verify you are not deleting prod",
+  ),
+  s(
+    "modal environment update",
+    "Update an environment in place instead of deleting it",
+  ),
 ];
 const MODAL_VOLUME_SUGGESTIONS: Suggestion[] = [
-  s("modal volume list", "List Modal Volumes to verify the target before deletion"),
-  s("modal volume ls <volume> <path>", "Inspect Volume contents before deleting files"),
-  s("modal volume cp <volume> <src> <dest>", "Copy data out of the Volume as a backup before destructive ops"),
+  s(
+    "modal volume list",
+    "List Modal Volumes to verify the target before deletion",
+  ),
+  s(
+    "modal volume ls <volume> <path>",
+    "Inspect Volume contents before deleting files",
+  ),
+  s(
+    "modal volume cp <volume> <src> <dest>",
+    "Copy data out of the Volume as a backup before destructive ops",
+  ),
 ];
 const MODAL_SECRET_SUGGESTIONS: Suggestion[] = [
-  s("modal secret list", "List Modal Secrets before deleting or overwriting one"),
-  s("modal secret create <new-name> ...", "Create a new secret with a versioned name instead of force-overwriting"),
+  s(
+    "modal secret list",
+    "List Modal Secrets before deleting or overwriting one",
+  ),
+  s(
+    "modal secret create <new-name> ...",
+    "Create a new secret with a versioned name instead of force-overwriting",
+  ),
 ];
 const MODAL_DICT_SUGGESTIONS: Suggestion[] = [
   s("modal dict list", "List Modal Dicts before deleting or clearing one"),
@@ -583,20 +882,59 @@ const MODAL_QUEUE_SUGGESTIONS: Suggestion[] = [
 ];
 
 const modalSafe: SafeRule[] = [
-  { name: "modal-volume-list", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:list|ls)\b/ },
-  { name: "modal-volume-get", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:get|cp|cat)\b/ },
-  { name: "modal-volume-create", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:create|rename)\b/ },
-  { name: "modal-app-readonly", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+app\s+(?:list|ls|logs|history|dashboard|rollback|rollover)\b/ },
-  { name: "modal-container-readonly", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+container\s+(?:list|ls|logs|exec)\b/ },
-  { name: "modal-secret-list", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+secret\s+(?:list|ls)\b/ },
-  { name: "modal-secret-create-no-force", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+secret\s+create\b(?!(?:[^;&|\r\n]|\\\r?\n)*(?:--force|--overwrite)\b)/ },
-  { name: "modal-environment-list", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+environment\s+(?:list|ls)\b/ },
-  { name: "modal-environment-mutate", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+environment\s+(?:create|update)\b/ },
-  { name: "modal-dict-readonly", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+dict\s+(?:list|ls|get|items|create)\b/ },
-  { name: "modal-queue-readonly", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+queue\s+(?:list|ls|peek|len|create)\b/ },
+  {
+    name: "modal-volume-list",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:list|ls)\b/,
+  },
+  {
+    name: "modal-volume-get",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:get|cp|cat)\b/,
+  },
+  {
+    name: "modal-volume-create",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:create|rename)\b/,
+  },
+  {
+    name: "modal-app-readonly",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+app\s+(?:list|ls|logs|history|dashboard|rollback|rollover)\b/,
+  },
+  {
+    name: "modal-container-readonly",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+container\s+(?:list|ls|logs|exec)\b/,
+  },
+  {
+    name: "modal-secret-list",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+secret\s+(?:list|ls)\b/,
+  },
+  {
+    name: "modal-secret-create-no-force",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+secret\s+create\b(?!(?:[^;&|\r\n]|\\\r?\n)*(?:--force|--overwrite)\b)/,
+  },
+  {
+    name: "modal-environment-list",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+environment\s+(?:list|ls)\b/,
+  },
+  {
+    name: "modal-environment-mutate",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+environment\s+(?:create|update)\b/,
+  },
+  {
+    name: "modal-dict-readonly",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+dict\s+(?:list|ls|get|items|create)\b/,
+  },
+  {
+    name: "modal-queue-readonly",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+queue\s+(?:list|ls|peek|len|create)\b/,
+  },
   { name: "modal-shell", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+shell\b/ },
-  { name: "modal-deploy", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:deploy|serve|run|profile|launch)\b/ },
-  { name: "modal-token", re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+token\s+(?:info|new|set)\b/ },
+  {
+    name: "modal-deploy",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:deploy|serve|run|profile|launch)\b/,
+  },
+  {
+    name: "modal-token",
+    re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+token\s+(?:info|new|set)\b/,
+  },
 ];
 
 const modalDestructive: DestructiveRule[] = [
@@ -604,7 +942,8 @@ const modalDestructive: DestructiveRule[] = [
     name: "modal-environment-delete",
     re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+environment\s+(?:delete|remove|rm)\b/,
     severity: "critical",
-    reason: "modal environment delete schedules removal of an entire Modal environment.",
+    reason:
+      "modal environment delete schedules removal of an entire Modal environment.",
     explanation:
       "Deleting a Modal environment removes the environment and every Modal app inside it — irrecoverable. Agents passing --yes bypass Modal's confirmation prompt entirely.",
     suggestions: MODAL_ENVIRONMENT_SUGGESTIONS,
@@ -613,7 +952,8 @@ const modalDestructive: DestructiveRule[] = [
     name: "modal-volume-delete",
     re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+(?:delete|remove)\b/,
     severity: "critical",
-    reason: "modal volume delete removes a Modal Volume and all data inside it.",
+    reason:
+      "modal volume delete removes a Modal Volume and all data inside it.",
     explanation:
       "Deleting a Modal Volume destroys persistent ML artifacts: model weights, datasets, checkpoints. There is no undo. Agents passing --yes bypass Modal's confirmation prompt entirely.",
     suggestions: MODAL_VOLUME_SUGGESTIONS,
@@ -658,7 +998,8 @@ const modalDestructive: DestructiveRule[] = [
     name: "modal-container-stop",
     re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+container\s+stop\b/,
     severity: "high",
-    reason: "modal container stop terminates a running Modal container and reassigns inputs.",
+    reason:
+      "modal container stop terminates a running Modal container and reassigns inputs.",
     explanation:
       "Stopping a Modal container interrupts in-flight work. The platform may reassign inputs, but exactly-once semantics are not guaranteed.",
     suggestions: MODAL_CONTAINER_SUGGESTIONS,
@@ -667,7 +1008,8 @@ const modalDestructive: DestructiveRule[] = [
     name: "modal-volume-rm-recursive",
     re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+volume\s+rm\b(?:[^;&|\r\n]|\\\r?\n)*(?:\s|=)(?:-r\b|-R\b|--recursive\b)/,
     severity: "high",
-    reason: "modal volume rm -r recursively deletes files inside a Modal Volume.",
+    reason:
+      "modal volume rm -r recursively deletes files inside a Modal Volume.",
     explanation:
       "Recursive `modal volume rm` can wipe entire subdirectories of persistent storage (datasets, checkpoints). Catastrophic when the target is wrong.",
     suggestions: MODAL_VOLUME_SUGGESTIONS,
@@ -703,7 +1045,8 @@ const modalDestructive: DestructiveRule[] = [
     name: "modal-secret-create-force",
     re: /\bmodal(?:\s+--?\S+(?:\s+\S+)?)*\s+secret\s+create\b(?:[^;&|\r\n]|\\\r?\n)*(?:--force|--overwrite)\b/,
     severity: "medium",
-    reason: "modal secret create --force overwrites an existing Modal Secret in place.",
+    reason:
+      "modal secret create --force overwrites an existing Modal Secret in place.",
     explanation:
       "Overwriting a Secret with --force changes the value used by every app that references it on next cold start — common cause of unintended prod credential rotation.",
     suggestions: MODAL_SECRET_SUGGESTIONS,
@@ -716,31 +1059,114 @@ const modalDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const gitlabSafe: SafeRule[] = [
-  { name: "glab-repo-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+list\b/ },
-  { name: "glab-repo-view", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+view\b/ },
-  { name: "glab-repo-clone", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+clone\b/ },
+  {
+    name: "glab-repo-list",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+list\b/,
+  },
+  {
+    name: "glab-repo-view",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+view\b/,
+  },
+  {
+    name: "glab-repo-clone",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+clone\b/,
+  },
   { name: "glab-mr-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+mr\s+list\b/ },
   { name: "glab-mr-view", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+mr\s+view\b/ },
-  { name: "glab-issue-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+issue\s+list\b/ },
-  { name: "glab-issue-view", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+issue\s+view\b/ },
-  { name: "glab-variable-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+list\b/ },
-  { name: "glab-release-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+list\b/ },
-  { name: "glab-release-view", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+view\b/ },
-  { name: "glab-api-explicit-get", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/ },
+  {
+    name: "glab-issue-list",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+issue\s+list\b/,
+  },
+  {
+    name: "glab-issue-view",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+issue\s+view\b/,
+  },
+  {
+    name: "glab-variable-list",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+list\b/,
+  },
+  {
+    name: "glab-release-list",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+list\b/,
+  },
+  {
+    name: "glab-release-view",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+view\b/,
+  },
+  {
+    name: "glab-api-explicit-get",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/,
+  },
 ];
 
 const gitlabDestructive: DestructiveRule[] = [
-  { name: "glab-repo-delete", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+delete\b/, severity: "high", reason: "glab repo delete permanently deletes a GitLab project." },
-  { name: "glab-repo-archive", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+archive\b/, severity: "high", reason: "glab repo archive makes a GitLab project read-only." },
-  { name: "glab-release-delete", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+delete\b/, severity: "high", reason: "glab release delete removes GitLab releases." },
-  { name: "glab-variable-delete", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+(?:delete|remove)\b/, severity: "high", reason: "glab variable delete removes GitLab CI/CD variables." },
-  { name: "glab-api-delete-project", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?projects\/[^/\s]+(?:\s|$)/, severity: "high", reason: "glab api DELETE /projects/* deletes a GitLab project." },
-  { name: "glab-api-delete-release", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?projects\/[^/\s]+\/releases\//, severity: "high", reason: "glab api DELETE releases removes GitLab releases." },
-  { name: "glab-api-delete-variable", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?projects\/[^/\s]+\/variables\//, severity: "high", reason: "glab api DELETE variables removes CI/CD variables." },
-  { name: "glab-api-delete-protected-branch", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?protected_branches\//, severity: "high", reason: "glab api DELETE protected_branches removes branch protections." },
-  { name: "glab-api-delete-hook", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?hooks\//, severity: "high", reason: "glab api DELETE hooks removes GitLab webhooks." },
-  { name: "gitlab-rails-runner-destructive", re: /gitlab-rails\s+runner\b.*\b(?:destroy_all|delete_all|\.destroy\b|\.delete\b|truncate|drop)\b/, severity: "high", reason: "gitlab-rails runner destructive operations can remove data." },
-  { name: "gitlab-rake-destructive", re: /gitlab-rake\b.*\b(?:gitlab:)?backup:restore\b|gitlab-rake\b.*\b(?:gitlab:)?db:(?:drop|reset)\b/, severity: "high", reason: "gitlab-rake destructive maintenance tasks can delete or replace data." },
+  {
+    name: "glab-repo-delete",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+delete\b/,
+    severity: "high",
+    reason: "glab repo delete permanently deletes a GitLab project.",
+  },
+  {
+    name: "glab-repo-archive",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+repo\s+archive\b/,
+    severity: "high",
+    reason: "glab repo archive makes a GitLab project read-only.",
+  },
+  {
+    name: "glab-release-delete",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+release\s+delete\b/,
+    severity: "high",
+    reason: "glab release delete removes GitLab releases.",
+  },
+  {
+    name: "glab-variable-delete",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+(?:delete|remove)\b/,
+    severity: "high",
+    reason: "glab variable delete removes GitLab CI/CD variables.",
+  },
+  {
+    name: "glab-api-delete-project",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?projects\/[^/\s]+(?:\s|$)/,
+    severity: "high",
+    reason: "glab api DELETE /projects/* deletes a GitLab project.",
+  },
+  {
+    name: "glab-api-delete-release",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?projects\/[^/\s]+\/releases\//,
+    severity: "high",
+    reason: "glab api DELETE releases removes GitLab releases.",
+  },
+  {
+    name: "glab-api-delete-variable",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?projects\/[^/\s]+\/variables\//,
+    severity: "high",
+    reason: "glab api DELETE variables removes CI/CD variables.",
+  },
+  {
+    name: "glab-api-delete-protected-branch",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?protected_branches\//,
+    severity: "high",
+    reason: "glab api DELETE protected_branches removes branch protections.",
+  },
+  {
+    name: "glab-api-delete-hook",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*(?:\/)?hooks\//,
+    severity: "high",
+    reason: "glab api DELETE hooks removes GitLab webhooks.",
+  },
+  {
+    name: "gitlab-rails-runner-destructive",
+    re: /gitlab-rails\s+runner\b.*\b(?:destroy_all|delete_all|\.destroy\b|\.delete\b|truncate|drop)\b/,
+    severity: "high",
+    reason: "gitlab-rails runner destructive operations can remove data.",
+  },
+  {
+    name: "gitlab-rake-destructive",
+    re: /gitlab-rake\b.*\b(?:gitlab:)?backup:restore\b|gitlab-rake\b.*\b(?:gitlab:)?db:(?:drop|reset)\b/,
+    severity: "high",
+    reason:
+      "gitlab-rake destructive maintenance tasks can delete or replace data.",
+  },
 ];
 
 /**
@@ -793,7 +1219,13 @@ export const platformPack: Pack = {
     "gitlab-rails",
     "gitlab-rake",
   ],
-  safePatterns: [...githubSafe, ...railwaySafe, ...kamalSafe, ...modalSafe, ...gitlabSafe],
+  safePatterns: [
+    ...githubSafe,
+    ...railwaySafe,
+    ...kamalSafe,
+    ...modalSafe,
+    ...gitlabSafe,
+  ],
   destructivePatterns: [
     ...githubDestructive,
     ...railwayDestructive,

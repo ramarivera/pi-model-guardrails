@@ -17,13 +17,13 @@
 //
 // See the StructuredOutput portNotes for every JS-incompatible regex rewrite.
 
+import { splitCommandSegments } from "./normalize.ts";
 import type {
   EngineDecision,
   ImperativeCheck,
   SegmentContext,
   Severity,
 } from "./types.ts";
-import { splitCommandSegments } from "./normalize.ts";
 
 const PACK_ID = "core.filesystem";
 
@@ -71,13 +71,7 @@ interface NormalizeToken {
 
 function isAsciiWhitespace(ch: string): boolean {
   // Rust char::is_ascii_whitespace(): space, \t, \n, \r, \x0C (form feed)
-  return (
-    ch === " " ||
-    ch === "\t" ||
-    ch === "\n" ||
-    ch === "\r" ||
-    ch === "\f"
-  );
+  return ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\f";
 }
 
 function isAsciiDigit(code: number): boolean {
@@ -97,7 +91,11 @@ function skipAsciiWhitespace(s: string, i: number, len: number): number {
 }
 
 // Port of consume_shell_paren_construct (normalize.rs).
-function consumeShellParenConstruct(s: string, startI: number, len: number): number {
+function consumeShellParenConstruct(
+  s: string,
+  startI: number,
+  len: number,
+): number {
   let i = startI;
   let depth = 1;
   while (i < len) {
@@ -295,7 +293,11 @@ function startsWithShellRedirection(s: string): boolean {
   while (idx < trimmed.length && isAsciiDigit(trimmed.charCodeAt(idx))) {
     idx += 1;
   }
-  return idx > 0 && idx < trimmed.length && (trimmed[idx] === ">" || trimmed[idx] === "<");
+  return (
+    idx > 0 &&
+    idx < trimmed.length &&
+    (trimmed[idx] === ">" || trimmed[idx] === "<")
+  );
 }
 
 // ============================================================================
@@ -316,7 +318,10 @@ function stripPrefix(s: string, prefix: string): string | undefined {
 }
 
 // Port of strip_outer_quotes.
-function stripOuterQuotes(token: string): { quote: QuoteKind; unquoted: string } {
+function stripOuterQuotes(token: string): {
+  quote: QuoteKind;
+  unquoted: string;
+} {
   if (token.length >= 2) {
     if (token.startsWith('"') && token.endsWith('"')) {
       return { quote: "double", unquoted: token.slice(1, token.length - 1) };
@@ -339,22 +344,32 @@ function hasDotdotSegment(path: string): boolean {
 // Port of path_is_safe_unquoted.
 function pathIsSafeUnquoted(path: string): boolean {
   let rest: string | undefined;
-  if ((rest = stripPrefix(path, "/tmp/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "/var/tmp/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "$TMPDIR/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR}/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/tmp}/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/var/tmp}/")) !== undefined) return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "/tmp/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "/var/tmp/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "$TMPDIR/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "${TMPDIR}/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "${TMPDIR:-/tmp}/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "${TMPDIR:-/var/tmp}/")) !== undefined)
+    return !hasDotdotSegment(rest);
   return false;
 }
 
 // Port of path_is_safe_double_quoted.
 function pathIsSafeDoubleQuoted(path: string): boolean {
   let rest: string | undefined;
-  if ((rest = stripPrefix(path, "$TMPDIR/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR}/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/tmp}/")) !== undefined) return !hasDotdotSegment(rest);
-  if ((rest = stripPrefix(path, "${TMPDIR:-/var/tmp}/")) !== undefined) return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "$TMPDIR/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "${TMPDIR}/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "${TMPDIR:-/tmp}/")) !== undefined)
+    return !hasDotdotSegment(rest);
+  if ((rest = stripPrefix(path, "${TMPDIR:-/var/tmp}/")) !== undefined)
+    return !hasDotdotSegment(rest);
   return false;
 }
 
@@ -449,7 +464,11 @@ function newRmFlagTracker(): RmFlagTracker {
 // it is a forced recursive removal.
 function resolveFlags(flags: RmFlagTracker): RmFlagState | undefined {
   if (flags.combinedSpan !== undefined) {
-    return { style: "combined", span: flags.combinedSpan, sawTerminator: flags.sawTerminator };
+    return {
+      style: "combined",
+      span: flags.combinedSpan,
+      sawTerminator: flags.sawTerminator,
+    };
   }
   const recursive = flags.seenR || flags.seenLongRecursive;
   const force = flags.seenF || flags.seenLongForce;
@@ -459,7 +478,8 @@ function resolveFlags(flags: RmFlagTracker): RmFlagState | undefined {
     const allLong = !flags.seenR && !flags.seenF;
     return {
       style: allLong ? "long" : "separate",
-      span: flags.rSpan ?? flags.recursiveSpan ?? flags.fSpan ?? flags.forceSpan,
+      span:
+        flags.rSpan ?? flags.recursiveSpan ?? flags.fSpan ?? flags.forceSpan,
       sawTerminator: flags.sawTerminator,
     };
   }
@@ -638,7 +658,8 @@ function parseRmSegment(
   }
 
   const isCritical = paths.some(
-    (path) => pathIsRootHome(path) && !pathIsSafeForStyle(path, flagState.style),
+    (path) =>
+      pathIsRootHome(path) && !pathIsSafeForStyle(path, flagState.style),
   );
 
   let patternName: string;
@@ -685,7 +706,9 @@ function parseRmSegment(
 
   const span =
     flagState.span ??
-    (paths.length > 0 ? { start: paths[0].start, end: paths[0].end } : undefined);
+    (paths.length > 0
+      ? { start: paths[0].start, end: paths[0].end }
+      : undefined);
 
   return { kind: "deny", hit: { patternName, reason, severity, span } };
 }
@@ -703,15 +726,19 @@ function parseRmSegment(
 // atomic constructs are used. See portNotes.
 
 const CP_SENSITIVE_THEN_DELETE_RE =
-  /\bcp\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s\)'"]|$))|\/(?=[\s\)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\|)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
+  /\bcp\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\|)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
 
 const LN_SYMLINK_SENSITIVE_THEN_DELETE_RE =
-  /\bln\b[^|;&]*\s-[A-Za-z]*s[A-Za-z]*[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s\)'"]|$))|\/(?=[\s\)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\|)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
+  /\bln\b[^|;&]*\s-[A-Za-z]*s[A-Za-z]*[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\|)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
 
 const RSYNC_SENSITIVE_THEN_DELETE_RE =
-  /\brsync\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s\)'"]|$))|\/(?=[\s\)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\|)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
+  /\brsync\b[^|;&]*(?:\s(?:-[A-Za-z]*a[A-Za-z]*|--archive)\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/(?:etc|usr|bin|sbin|root|boot|lib|lib64|var|home|sys|proc|dev|opt)(?:\/|(?=[\s)'"]|$))|\/(?=[\s)'"]|$)|~(?=\s|$|\/|\))|\$\{?HOME\b)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)[^|;&\s'"]*[^|;&]*(?:&&|;|\|\|)[^|;&]*\brm\b[^|;&]*\s(?:-[A-Za-z]*[rR][A-Za-z]*f[A-Za-z]*|-[A-Za-z]*f[A-Za-z]*[rR][A-Za-z]*|-[rR]\s+-f|-f\s+-[rR]|--recursive\s+--force|--force\s+--recursive)[^|;&]*?(?:\s|=)(?:['"\\]|\$['"])?(?:\/tmp\/|\/var\/tmp\/|\$TMPDIR\/|\$\{TMPDIR\}\/)/;
 
-const PROPAGATION_RULES: ReadonlyArray<{ name: string; re: RegExp; reason: string }> = [
+const PROPAGATION_RULES: ReadonlyArray<{
+  name: string;
+  re: RegExp;
+  reason: string;
+}> = [
   {
     name: "cp-sensitive-then-delete",
     re: CP_SENSITIVE_THEN_DELETE_RE,

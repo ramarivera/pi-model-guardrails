@@ -40,7 +40,6 @@ test("resolveIndirection: variable indirection expands $x", () => {
 });
 
 test("resolveIndirection: braced dollar-brace form", () => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash ${...} expansion in a plain string, not a JS template
   const r = resolveIndirection("x=rm; ${x} -rf /tmp/data");
   assert.ok(r);
   assert.match(r.expanded, /\brm -rf \/tmp\/data\b/);
@@ -158,7 +157,6 @@ test("regression(bypass): verb built by concatenation is blocked", () => {
 });
 
 test("regression(bypass): partial-var verb concatenation is blocked", () => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash ${...} in a plain string
   assert.ok(blocks("x=m; r${x} -rf /etc"));
   assert.ok(blocks("x=gi; y=t; $x$y reset --hard HEAD~1"));
 });

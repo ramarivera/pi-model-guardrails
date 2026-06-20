@@ -130,7 +130,8 @@ const RM_RECURSIVE_FORCE_SUGGESTIONS: Suggestion[] = [
 const FIND_DELETE_SUGGESTIONS: Suggestion[] = [
   {
     command: "find {path} -type f | head -20",
-    description: "Preview which files `-delete` would remove (drop the -delete flag)",
+    description:
+      "Preview which files `-delete` would remove (drop the -delete flag)",
     platform: "all",
   },
   {
@@ -168,7 +169,8 @@ const UNLINK_SUGGESTIONS: Suggestion[] = [
   },
   {
     command: "trash-put {path}",
-    description: "Move to trash instead of permanent unlink (requires trash-cli)",
+    description:
+      "Move to trash instead of permanent unlink (requires trash-cli)",
     platform: "linux",
   },
 ];
@@ -262,7 +264,8 @@ const DD_OVERWRITE_SUGGESTIONS: Suggestion[] = [
   },
   {
     command: "dd if={path} of=/dev/null",
-    description: "Read-only dd: output discarded (useful for testing read speed)",
+    description:
+      "Read-only dd: output discarded (useful for testing read speed)",
     platform: "all",
   },
 ];
@@ -812,71 +815,71 @@ const safePatterns: SafeRule[] = [
   { name: "shred-help", re: /^shred\s+(?:--help|--version)\s*$/ },
   {
     name: "shred-tmp",
-    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   {
     name: "shred-var-tmp",
-    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   {
     name: "shred-tmpdir",
-    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   {
     name: "shred-tmpdir-brace",
-    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^shred(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   // `tar --remove-files` safe whitelist
   {
     name: "tar-remove-files-tmp",
-    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   {
     name: "tar-remove-files-var-tmp",
-    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   {
     name: "tar-remove-files-tmpdir",
-    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   {
     name: "tar-remove-files-tmpdir-brace",
-    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
+    re: /^tar(?=\s+[^|;&]*--remove-files\b)(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s*$/,
   },
   // `dd` safe whitelist
   {
     name: "dd-tmp",
-    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s+of=['"]?\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s*$/,
+    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s+of=['"]?\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s*$/,
   },
   {
     name: "dd-var-tmp",
-    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s+of=['"]?\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s*$/,
+    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s+of=['"]?\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s*$/,
   },
   {
     name: "dd-tmpdir",
-    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s+of=['"]?\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s*$/,
+    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s+of=['"]?\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s*$/,
   },
   {
     name: "dd-tmpdir-brace",
-    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s+of=['"]?\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9\-]*(?:=\S+)?))*\s*$/,
+    re: /^dd(?=\s+[^|;&]*\bof=)(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s+of=['"]?\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+(?:\s+(?:[a-zA-Z]+=\S+|--?[a-zA-Z][a-zA-Z0-9-]*(?:=\S+)?))*\s*$/,
   },
   { name: "dd-help", re: /^dd\s+(?:--help|--version)\s*$/ },
   // `mv` safe whitelist
   {
     name: "mv-tmp",
-    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
+    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
   },
   {
     name: "mv-var-tmp",
-    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
+    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\/var\/tmp\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
   },
   {
     name: "mv-tmpdir",
-    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
+    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\$TMPDIR\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
   },
   {
     name: "mv-tmpdir-brace",
-    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z\-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
+    re: /^mv(?:\s+(?:-[a-zA-Z][a-zA-Z0-9_-]*(?:\s+[^/~$\-\s][^\s|;&]*)?|--[a-z-]+(?:=\S+|\s+[^/~$\-\s][^\s|;&]*)?))*\s+(?:\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s+)+\$\{TMPDIR\}\/(?!\.\.(?:\/|\s|$)|[^\s]*\/\.\.(?:\/|\s|$))\S+\s*$/,
   },
   { name: "mv-help", re: /^mv\s+(?:--help|--version)\s*$/ },
 ];
@@ -1048,9 +1051,10 @@ const destructivePatterns: DestructiveRule[] = [
   // ----- `shred ...` (High: any other target) -----
   {
     name: "shred-general",
-    re: /\bshred\s+(?:-[a-zA-Z]+\s+|--[a-z\-]+\s+|--[a-z\-]+=\S+\s+)*\S/,
+    re: /\bshred\s+(?:-[a-zA-Z]+\s+|--[a-z-]+\s+|--[a-z-]+=\S+\s+)*\S/,
     severity: "high",
-    reason: "shred destroys file content beyond recovery and requires human approval.",
+    reason:
+      "shred destroys file content beyond recovery and requires human approval.",
     explanation: SHRED_GENERAL_EXPLANATION,
     suggestions: SHRED_SUGGESTIONS,
   },
@@ -1089,7 +1093,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "dd-overwrite-general",
     re: /\bdd\b[^|;&]*?\bof=['"\\]?(?!\/dev\/)\S/,
     severity: "high",
-    reason: "dd with of=<file> overwrites file contents and requires human approval.",
+    reason:
+      "dd with of=<file> overwrites file contents and requires human approval.",
     explanation: DD_OVERWRITE_GENERAL_EXPLANATION,
     suggestions: DD_OVERWRITE_SUGGESTIONS,
   },

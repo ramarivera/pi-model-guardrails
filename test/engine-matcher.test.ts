@@ -20,7 +20,9 @@ const OPTS: Required<EvaluateOptions> = {
   failClosed: false,
 };
 
-function opts(over: Partial<Required<EvaluateOptions>> = {}): Required<EvaluateOptions> {
+function opts(
+  over: Partial<Required<EvaluateOptions>> = {},
+): Required<EvaluateOptions> {
   return { ...OPTS, ...over };
 }
 
@@ -35,10 +37,20 @@ test("destructive pattern denies (high => deny)", () => {
     keywords: ["git"],
     safePatterns: [],
     destructivePatterns: [
-      { name: "reset-hard", re: /git\s+reset\s+--hard/, severity: "high", reason: "hard reset" },
+      {
+        name: "reset-hard",
+        re: /git\s+reset\s+--hard/,
+        severity: "high",
+        reason: "hard reset",
+      },
     ],
   };
-  const d = matchPack(pack, segs("git reset --hard"), "git reset --hard", opts());
+  const d = matchPack(
+    pack,
+    segs("git reset --hard"),
+    "git reset --hard",
+    opts(),
+  );
   assert.ok(d);
   assert.equal(d?.decision, "deny");
   assert.equal(d?.blocked, true);
@@ -54,16 +66,23 @@ test("medium => warn, low => log", () => {
     name: "warn",
     keywords: ["foo"],
     safePatterns: [],
-    destructivePatterns: [{ name: "m", re: /foo/, severity: "medium", reason: "m" }],
+    destructivePatterns: [
+      { name: "m", re: /foo/, severity: "medium", reason: "m" },
+    ],
   };
   const logPack: Pack = {
     id: "x.log",
     name: "log",
     keywords: ["bar"],
     safePatterns: [],
-    destructivePatterns: [{ name: "l", re: /bar/, severity: "low", reason: "l" }],
+    destructivePatterns: [
+      { name: "l", re: /bar/, severity: "low", reason: "l" },
+    ],
   };
-  assert.equal(matchPack(warnPack, segs("foo"), "foo", opts())?.decision, "warn");
+  assert.equal(
+    matchPack(warnPack, segs("foo"), "foo", opts())?.decision,
+    "warn",
+  );
   assert.equal(matchPack(warnPack, segs("foo"), "foo", opts())?.blocked, false);
   assert.equal(matchPack(logPack, segs("bar"), "bar", opts())?.decision, "log");
 });
@@ -74,10 +93,20 @@ test("per-pack safe pattern short-circuits this pack's destructive patterns", ()
     name: "docker",
     keywords: ["docker"],
     safePatterns: [{ name: "docker-ps", re: /docker\s+ps/ }],
-    destructivePatterns: [{ name: "prune", re: /docker\s+system\s+prune/, severity: "high", reason: "prune" }],
+    destructivePatterns: [
+      {
+        name: "prune",
+        re: /docker\s+system\s+prune/,
+        severity: "high",
+        reason: "prune",
+      },
+    ],
   };
   // Whole command is a single safe segment -> pack abstains.
-  assert.equal(matchPack(pack, segs("docker ps"), "docker ps", opts()), undefined);
+  assert.equal(
+    matchPack(pack, segs("docker ps"), "docker ps", opts()),
+    undefined,
+  );
 });
 
 test("safe match in one segment does NOT shield a destructive segment (compound bypass guard within pack)", () => {
@@ -88,11 +117,21 @@ test("safe match in one segment does NOT shield a destructive segment (compound 
     name: "docker",
     keywords: ["docker"],
     safePatterns: [{ name: "docker-ps", re: /^docker\s+ps$/ }],
-    destructivePatterns: [{ name: "prune", re: /docker\s+system\s+prune/, severity: "high", reason: "prune" }],
+    destructivePatterns: [
+      {
+        name: "prune",
+        re: /docker\s+system\s+prune/,
+        severity: "high",
+        reason: "prune",
+      },
+    ],
   };
   const cmd = "docker ps && docker system prune";
   const d = matchPack(pack, segs(cmd), cmd, opts());
-  assert.ok(d, "destructive segment must still fire even though one segment is safe");
+  assert.ok(
+    d,
+    "destructive segment must still fire even though one segment is safe",
+  );
   assert.equal(d?.ruleName, "prune");
 });
 
@@ -103,7 +142,9 @@ test("imperative check runs before safe/destructive patterns and short-circuits"
     name: "fs",
     keywords: ["rm"],
     safePatterns: [{ name: "never", re: /rm/ }], // would otherwise allow
-    destructivePatterns: [{ name: "never2", re: /rm/, severity: "high", reason: "x" }],
+    destructivePatterns: [
+      { name: "never2", re: /rm/, severity: "high", reason: "x" },
+    ],
     imperative: [
       (ctx) => {
         calls.push(ctx.raw);
@@ -136,9 +177,14 @@ test("clean miss => pack abstains (undefined)", () => {
     name: "git",
     keywords: ["git"],
     safePatterns: [],
-    destructivePatterns: [{ name: "r", re: /git\s+reset\s+--hard/, severity: "high", reason: "r" }],
+    destructivePatterns: [
+      { name: "r", re: /git\s+reset\s+--hard/, severity: "high", reason: "r" },
+    ],
   };
-  assert.equal(matchPack(pack, segs("git status"), "git status", opts()), undefined);
+  assert.equal(
+    matchPack(pack, segs("git status"), "git status", opts()),
+    undefined,
+  );
 });
 
 test("fail-open: a regex over the per-match budget abstains (default)", () => {
@@ -149,10 +195,21 @@ test("fail-open: a regex over the per-match budget abstains (default)", () => {
     name: "slow",
     keywords: ["a"],
     safePatterns: [],
-    destructivePatterns: [{ name: "slow", re: /a/, severity: "critical", reason: "slow" }],
+    destructivePatterns: [
+      { name: "slow", re: /a/, severity: "critical", reason: "slow" },
+    ],
   };
-  const d = matchPack(pack, segs("aaaa"), "aaaa", opts({ perMatchBudgetMs: -1 }));
-  assert.equal(d, undefined, "budget trip with failClosed=false must fail open");
+  const d = matchPack(
+    pack,
+    segs("aaaa"),
+    "aaaa",
+    opts({ perMatchBudgetMs: -1 }),
+  );
+  assert.equal(
+    d,
+    undefined,
+    "budget trip with failClosed=false must fail open",
+  );
 });
 
 test("fail-closed: a guard trip becomes a critical deny", () => {
@@ -161,9 +218,16 @@ test("fail-closed: a guard trip becomes a critical deny", () => {
     name: "slow",
     keywords: ["a"],
     safePatterns: [],
-    destructivePatterns: [{ name: "slow", re: /a/, severity: "critical", reason: "slow" }],
+    destructivePatterns: [
+      { name: "slow", re: /a/, severity: "critical", reason: "slow" },
+    ],
   };
-  const d = matchPack(pack, segs("aaaa"), "aaaa", opts({ perMatchBudgetMs: -1, failClosed: true }));
+  const d = matchPack(
+    pack,
+    segs("aaaa"),
+    "aaaa",
+    opts({ perMatchBudgetMs: -1, failClosed: true }),
+  );
   assert.ok(d);
   assert.equal(d?.decision, "deny");
   assert.equal(d?.severity, "critical");
@@ -177,13 +241,23 @@ test("length cap bites before budget: oversized input trips guard", () => {
     name: "cap",
     keywords: ["a"],
     safePatterns: [],
-    destructivePatterns: [{ name: "d", re: /a/, severity: "high", reason: "d" }],
+    destructivePatterns: [
+      { name: "d", re: /a/, severity: "high", reason: "d" },
+    ],
   };
   // Provide a single segment whose normalized text exceeds the cap.
   const cmd = "aaaa";
-  assert.equal(matchPack(pack, segs(cmd), cmd, opts({ inputMaxLength: 2 })), undefined);
+  assert.equal(
+    matchPack(pack, segs(cmd), cmd, opts({ inputMaxLength: 2 })),
+    undefined,
+  );
   // And with failClosed, the same cap trip becomes a critical deny.
-  const d = matchPack(pack, segs(cmd), cmd, opts({ inputMaxLength: 2, failClosed: true }));
+  const d = matchPack(
+    pack,
+    segs(cmd),
+    cmd,
+    opts({ inputMaxLength: 2, failClosed: true }),
+  );
   assert.equal(d?.decision, "deny");
   assert.equal(d?.severity, "critical");
 });

@@ -86,7 +86,11 @@ test("e2e: a dangerous command is blocked via the shim-loaded extension", async 
   const blocked = await fire(
     pi,
     "tool_call",
-    { toolCallId: "call_e2e", toolName: "bash", input: { command: "git reset --hard HEAD~1" } },
+    {
+      toolCallId: "call_e2e",
+      toolName: "bash",
+      input: { command: "git reset --hard HEAD~1" },
+    },
     ctx,
   );
   assert.ok(blocked?.block, "git reset --hard is blocked end to end");
@@ -121,8 +125,15 @@ test("e2e: a newly-ported breadth pack blocks via the live registry", async () =
   const blocked = await fire(
     pi,
     "tool_call",
-    { toolCallId: "call_e2e", toolName: "bash", input: { command: "kubectl delete pods --all" } },
+    {
+      toolCallId: "call_e2e",
+      toolName: "bash",
+      input: { command: "kubectl delete pods --all" },
+    },
     ctx,
   );
-  assert.ok(blocked?.block, "a kubernetes-pack rule blocks via the live registry");
+  assert.ok(
+    blocked?.block,
+    "a kubernetes-pack rule blocks via the live registry",
+  );
 });

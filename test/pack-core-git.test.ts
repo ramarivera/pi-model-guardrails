@@ -12,8 +12,8 @@
 // destructive patterns in declaration order (first match wins). This is exactly
 // DCG's `check` -> `check_single` ordering for a pack with no imperative checks.
 
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 
 import { coreGitPack } from "../src/engine/packs/core-git.ts";
 import type { Severity } from "../src/engine/types.ts";
@@ -79,7 +79,9 @@ function splitSegments(cmd: string): string[] {
   }
   segs.push(buf);
   const trimmed = segs.map((sg) => sg.trim()).filter((sg) => sg.length > 0);
-  return trimmed.length > 0 ? trimmed : [cmd.trim()].filter((sg) => sg.length > 0);
+  return trimmed.length > 0
+    ? trimmed
+    : [cmd.trim()].filter((sg) => sg.length > 0);
 }
 
 function checkSingle(seg: string): Match | undefined {
@@ -152,7 +154,10 @@ test("force push (long and short) is critical", () => {
   assert.ok(shortF, "force push (short) must block");
   assert.equal(shortF.severity, "critical");
 
-  for (const cmd of ["git " + "push origin main --force", "git " + "push --force origin main"]) {
+  for (const cmd of [
+    "git " + "push origin main --force",
+    "git " + "push --force origin main",
+  ]) {
     const r = check(cmd);
     assert.ok(r, `${cmd} must block`);
     assert.match(r.reason, /destroy remote history/);
@@ -206,16 +211,24 @@ test("force push must not span shell boundaries (#124), but real ones across sep
     "git " + "push origin main; echo --force",
     "git " + "push origin main || echo --force",
     "git " + "push origin main | tee log --force",
-    "branch=$(git rev-parse HEAD) && git " + "push --force-with-lease origin main",
+    "branch=$(git rev-parse HEAD) && git " +
+      "push --force-with-lease origin main",
   ]) {
-    assert.equal(check(cmd), undefined, `force push must not span shell boundaries; cmd=${cmd}`);
+    assert.equal(
+      check(cmd),
+      undefined,
+      `force push must not span shell boundaries; cmd=${cmd}`,
+    );
   }
   for (const cmd of [
     "git fetch && git " + "push --force origin main",
     "git fetch; git " + "push -f origin main",
     "git fetch || git " + "push --force",
   ]) {
-    assert.ok(check(cmd), `a real force-push statement after a separator must still block; cmd=${cmd}`);
+    assert.ok(
+      check(cmd),
+      `a real force-push statement after a separator must still block; cmd=${cmd}`,
+    );
   }
 });
 
@@ -273,9 +286,21 @@ test("branch force-delete is medium (branch-force-delete)", () => {
   }
 
   // Non-forcing forms must NOT trip the rule.
-  assert.equal(check("git branch -d merged-feature"), undefined, "-d alone must not block");
-  assert.equal(check("git branch -vd merged-feature"), undefined, "-vd must not block");
-  assert.equal(check("git branch -a"), undefined, "listing branches must not block");
+  assert.equal(
+    check("git branch -d merged-feature"),
+    undefined,
+    "-d alone must not block",
+  );
+  assert.equal(
+    check("git branch -vd merged-feature"),
+    undefined,
+    "-vd must not block",
+  );
+  assert.equal(
+    check("git branch -a"),
+    undefined,
+    "listing branches must not block",
+  );
 
   // --force-with-lease / --force-if-includes must not false-match branch-force-delete (#121).
   for (const cmd of [
@@ -287,18 +312,27 @@ test("branch force-delete is medium (branch-force-delete)", () => {
     // they are NOT attributed to branch-force-delete, and the lease ones stay safe.)
     const r = check(cmd);
     if (r) {
-      assert.notEqual(r.ruleName, "branch-force-delete", `cmd must not be branch-force-delete; cmd=${cmd}`);
+      assert.notEqual(
+        r.ruleName,
+        "branch-force-delete",
+        `cmd must not be branch-force-delete; cmd=${cmd}`,
+      );
     }
   }
 
   // branch-force-delete must not span shell boundaries (#121).
   for (const cmd of [
-    "branch=$(git branch --show-current) && git " + "push --force-with-lease origin HEAD:main",
+    "branch=$(git branch --show-current) && git " +
+      "push --force-with-lease origin HEAD:main",
     "git branch --show-current && git " + "push --force-with-lease origin main",
     "git branch --show-current; git " + "push --force-with-lease origin main",
     "git branch --show-current || git " + "push --force-with-lease origin main",
   ]) {
-    assert.equal(check(cmd), undefined, `branch-force-delete must not span shell boundaries; cmd=${cmd}`);
+    assert.equal(
+      check(cmd),
+      undefined,
+      `branch-force-delete must not span shell boundaries; cmd=${cmd}`,
+    );
   }
 });
 
@@ -372,6 +406,14 @@ test("unrelated commands do not match", () => {
 });
 
 test("'git' as a substring must not trigger (.gitignore, digit)", () => {
-  assert.equal(check("cat .gitignore"), undefined, ".gitignore must not be a false positive");
-  assert.equal(check("echo digit"), undefined, "'digit' must not be a false positive");
+  assert.equal(
+    check("cat .gitignore"),
+    undefined,
+    ".gitignore must not be a false positive",
+  );
+  assert.equal(
+    check("echo digit"),
+    undefined,
+    "'digit' must not be a false positive",
+  );
 });

@@ -18,12 +18,11 @@
 // merged pack tool-prefixes them (`terraform-destroy`, `pulumi-destroy`), so the
 // expected ruleName here is the prefixed form.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
+import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { infrastructurePack } from "../src/engine/packs/infrastructure.ts";
 import { buildRegistry } from "../src/engine/registry.ts";
-import { evaluateCommand } from "../src/engine/evaluate.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([infrastructurePack]);
@@ -37,7 +36,11 @@ function blocks(cmd: string, ruleName: string, severity?: Severity): void {
 
 function allows(cmd: string): void {
   const d = evaluateCommand(cmd, registry);
-  assert.equal(d.decision, "allow", `expected ${cmd} to be allowed, got ${d.ruleName}`);
+  assert.equal(
+    d.decision,
+    "allow",
+    `expected ${cmd} to be allowed, got ${d.ruleName}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +53,10 @@ test("terraform: blocks each destructive pattern", () => {
   blocks("terraform apply -auto-approve", "terraform-apply-auto-approve");
   blocks("terraform taint aws_instance.web", "terraform-taint");
   blocks("terraform state rm aws_s3_bucket.data", "terraform-state-rm");
-  blocks("terraform state mv aws_instance.a aws_instance.b", "terraform-state-mv");
+  blocks(
+    "terraform state mv aws_instance.a aws_instance.b",
+    "terraform-state-mv",
+  );
   blocks("terraform force-unlock 12345", "terraform-force-unlock");
   blocks("terraform workspace delete staging", "terraform-workspace-delete");
 });
@@ -58,20 +64,43 @@ test("terraform: blocks each destructive pattern", () => {
 test("terraform: correct severities", () => {
   blocks("terraform destroy", "terraform-destroy", "critical");
   blocks("terraform plan -destroy", "terraform-plan-destroy", "medium");
-  blocks("terraform apply -auto-approve", "terraform-apply-auto-approve", "high");
+  blocks(
+    "terraform apply -auto-approve",
+    "terraform-apply-auto-approve",
+    "high",
+  );
   blocks("terraform taint aws_instance.x", "terraform-taint", "high");
   blocks("terraform state rm aws_instance.x", "terraform-state-rm", "high");
   blocks("terraform state mv a b", "terraform-state-mv", "high");
   blocks("terraform force-unlock 123", "terraform-force-unlock", "high");
-  blocks("terraform workspace delete dev", "terraform-workspace-delete", "medium");
+  blocks(
+    "terraform workspace delete dev",
+    "terraform-workspace-delete",
+    "medium",
+  );
 });
 
 test("terraform: -chdir global flag does not bypass", () => {
-  blocks("terraform -chdir=./environments/prod destroy -auto-approve", "terraform-destroy");
-  blocks("terraform -chdir=./prod apply -auto-approve", "terraform-apply-auto-approve");
-  blocks("terraform -chdir=./prod state rm aws_instance.important", "terraform-state-rm");
-  blocks("terraform -chdir=./prod workspace delete prod-old", "terraform-workspace-delete");
-  blocks("terraform -chdir=./prod force-unlock abc123", "terraform-force-unlock");
+  blocks(
+    "terraform -chdir=./environments/prod destroy -auto-approve",
+    "terraform-destroy",
+  );
+  blocks(
+    "terraform -chdir=./prod apply -auto-approve",
+    "terraform-apply-auto-approve",
+  );
+  blocks(
+    "terraform -chdir=./prod state rm aws_instance.important",
+    "terraform-state-rm",
+  );
+  blocks(
+    "terraform -chdir=./prod workspace delete prod-old",
+    "terraform-workspace-delete",
+  );
+  blocks(
+    "terraform -chdir=./prod force-unlock abc123",
+    "terraform-force-unlock",
+  );
 });
 
 test("terraform: safe patterns allow", () => {
@@ -115,18 +144,34 @@ test("ansible: safe dry-run / info modes allow", () => {
 });
 
 test("ansible: blocks shell rm -rf", () => {
-  blocks("ansible all -m shell -a 'rm -rf /var/data'", "ansible-shell-rm-rf", "critical");
-  blocks("ansible webservers -m command -a 'rm -rf /tmp/cache'", "ansible-shell-rm-rf", "critical");
+  blocks(
+    "ansible all -m shell -a 'rm -rf /var/data'",
+    "ansible-shell-rm-rf",
+    "critical",
+  );
+  blocks(
+    "ansible webservers -m command -a 'rm -rf /tmp/cache'",
+    "ansible-shell-rm-rf",
+    "critical",
+  );
 });
 
 test("ansible: blocks shell reboot/shutdown/poweroff", () => {
   blocks("ansible all -m shell -a 'reboot'", "ansible-shell-reboot", "high");
-  blocks("ansible dbservers -m command -a 'shutdown -h now'", "ansible-shell-reboot", "high");
+  blocks(
+    "ansible dbservers -m command -a 'shutdown -h now'",
+    "ansible-shell-reboot",
+    "high",
+  );
   blocks("ansible all -m shell -a 'poweroff'", "ansible-shell-reboot", "high");
 });
 
 test("ansible: blocks playbook without --check or --limit", () => {
-  blocks("ansible-playbook -i production deploy.yml", "ansible-playbook-all-hosts", "high");
+  blocks(
+    "ansible-playbook -i production deploy.yml",
+    "ansible-playbook-all-hosts",
+    "high",
+  );
 });
 
 test("ansible: allows playbook with --check or --limit", () => {
@@ -135,8 +180,16 @@ test("ansible: allows playbook with --check or --limit", () => {
 });
 
 test("ansible: blocks extra-vars destructive keywords", () => {
-  blocks("ansible all -e 'action=delete' -m shell -a 'echo hi'", "ansible-extra-vars-delete", "medium");
-  blocks('ansible all -e "state=destroy" -m debug', "ansible-extra-vars-delete", "medium");
+  blocks(
+    "ansible all -e 'action=delete' -m shell -a 'echo hi'",
+    "ansible-extra-vars-delete",
+    "medium",
+  );
+  blocks(
+    'ansible all -e "state=destroy" -m debug',
+    "ansible-extra-vars-delete",
+    "medium",
+  );
 });
 
 test("ansible: allows benign extra-vars", () => {
@@ -155,7 +208,10 @@ test("pulumi: blocks each destructive pattern", () => {
   blocks("pulumi destroy", "pulumi-destroy");
   blocks("pulumi up -y", "pulumi-up-yes");
   blocks("pulumi up --yes", "pulumi-up-yes");
-  blocks("pulumi state delete urn:pulumi:prod::db::aws:rds/instance:Instance::main", "pulumi-state-delete");
+  blocks(
+    "pulumi state delete urn:pulumi:prod::db::aws:rds/instance:Instance::main",
+    "pulumi-state-delete",
+  );
   blocks("pulumi stack rm prod-old", "pulumi-stack-rm");
   blocks("pulumi refresh -y", "pulumi-refresh-yes");
   blocks("pulumi refresh --yes", "pulumi-refresh-yes");
@@ -174,7 +230,10 @@ test("pulumi: correct severities", () => {
 test("pulumi: global flags do not bypass", () => {
   blocks("pulumi --cwd ./prod destroy", "pulumi-destroy");
   blocks("pulumi --non-interactive --cwd ./prod up -y", "pulumi-up-yes");
-  blocks("pulumi --cwd ./prod state delete urn:pulumi:prod::db::aws:rds/instance:Instance::main", "pulumi-state-delete");
+  blocks(
+    "pulumi --cwd ./prod state delete urn:pulumi:prod::db::aws:rds/instance:Instance::main",
+    "pulumi-state-delete",
+  );
   blocks("pulumi --verbose --cwd ./prod stack rm prod-old", "pulumi-stack-rm");
 });
 

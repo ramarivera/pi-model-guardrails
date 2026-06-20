@@ -15,12 +15,11 @@
 // assert at the safe-rule level: the traversal target matches no safe pattern,
 // while a normal `/tmp/` target still does.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
+import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { remotePack } from "../src/engine/packs/remote.ts";
 import { buildRegistry } from "../src/engine/registry.ts";
-import { evaluateCommand } from "../src/engine/evaluate.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([remotePack]);
@@ -39,7 +38,11 @@ function matchesSafe(cmd: string): boolean {
 
 function allows(cmd: string): void {
   const d = evaluateCommand(cmd, registry);
-  assert.equal(d.decision, "allow", `expected ${cmd} to be allowed, got ${d.ruleName}`);
+  assert.equal(
+    d.decision,
+    "allow",
+    `expected ${cmd} to be allowed, got ${d.ruleName}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -67,18 +70,34 @@ test("ssh: allows safe commands", () => {
 test("ssh: blocks remote rm -rf", () => {
   blocks("ssh user@host 'rm -rf /tmp/data'", "ssh-remote-rm-rf", "critical");
   blocks('ssh host "rm -rf ./build"', "ssh-remote-rm-rf", "critical");
-  blocks("ssh -i key.pem user@host 'rm -rf /var/log'", "ssh-remote-rm-rf", "critical");
+  blocks(
+    "ssh -i key.pem user@host 'rm -rf /var/log'",
+    "ssh-remote-rm-rf",
+    "critical",
+  );
 });
 
 test("ssh: blocks remote git destructive", () => {
-  blocks("ssh user@host 'git reset --hard HEAD'", "ssh-remote-git-reset-hard", "high");
-  blocks('ssh host "cd repo && git reset --hard"', "ssh-remote-git-reset-hard", "high");
+  blocks(
+    "ssh user@host 'git reset --hard HEAD'",
+    "ssh-remote-git-reset-hard",
+    "high",
+  );
+  blocks(
+    'ssh host "cd repo && git reset --hard"',
+    "ssh-remote-git-reset-hard",
+    "high",
+  );
   blocks("ssh user@host 'git clean -fd'", "ssh-remote-git-clean", "high");
 });
 
 test("ssh: blocks ssh-keygen -R (known_hosts removal)", () => {
   blocks("ssh-keygen -R hostname", "ssh-keygen-remove-host", "medium");
-  blocks("ssh-keygen -f ~/.ssh/known_hosts -R 192.168.1.1", "ssh-keygen-remove-host", "medium");
+  blocks(
+    "ssh-keygen -f ~/.ssh/known_hosts -R 192.168.1.1",
+    "ssh-keygen-remove-host",
+    "medium",
+  );
 });
 
 test("ssh: blocks ssh-add -d/-D", () => {
@@ -87,7 +106,11 @@ test("ssh: blocks ssh-add -d/-D", () => {
 });
 
 test("ssh: blocks remote sudo rm", () => {
-  blocks("ssh root@host 'sudo rm /etc/passwd'", "ssh-remote-sudo-rm", "critical");
+  blocks(
+    "ssh root@host 'sudo rm /etc/passwd'",
+    "ssh-remote-sudo-rm",
+    "critical",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -142,14 +165,26 @@ test("scp: blocks copy to /lib and /lib64", () => {
 
 test("scp: path traversal out of safe dirs is not treated as safe (matches_safe)", () => {
   // Mirrors DCG `path_traversal_does_not_bypass_via_safe` exactly (safe-rule level).
-  assert.equal(matchesSafe("scp file user@host:/tmp/stash/"), true, "normal /tmp copies remain safe");
-  assert.equal(matchesSafe("scp file user@host:/tmp/../etc/passwd"), false, "traversal out of /tmp must NOT be safe");
+  assert.equal(
+    matchesSafe("scp file user@host:/tmp/stash/"),
+    true,
+    "normal /tmp copies remain safe",
+  );
+  assert.equal(
+    matchesSafe("scp file user@host:/tmp/../etc/passwd"),
+    false,
+    "traversal out of /tmp must NOT be safe",
+  );
   assert.equal(
     matchesSafe("scp file user@host:/var/tmp/../root/.ssh/authorized_keys"),
     false,
     "traversal out of /var/tmp must NOT be safe",
   );
-  assert.equal(matchesSafe("scp file user@host:~/../root/.bashrc"), false, "traversal out of ~ must NOT be safe");
+  assert.equal(
+    matchesSafe("scp file user@host:~/../root/.bashrc"),
+    false,
+    "traversal out of ~ must NOT be safe",
+  );
 });
 
 // ---------------------------------------------------------------------------

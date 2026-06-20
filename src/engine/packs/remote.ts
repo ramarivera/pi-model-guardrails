@@ -60,7 +60,8 @@ const sshDestructive: DestructiveRule[] = [
     name: "ssh-remote-git-reset-hard",
     re: /ssh\s+(?:\S+\s+)*(?:-[A-Za-z]+\s+)*\S+[@:]?\S*\s+['"]?.*\bgit\s+reset\s+--hard\b/,
     severity: "high",
-    reason: "SSH remote execution contains destructive git reset --hard command.",
+    reason:
+      "SSH remote execution contains destructive git reset --hard command.",
     explanation:
       "Running git reset --hard on a remote server discards all uncommitted changes. " +
       "On production servers, this might destroy deployment state or configuration " +
@@ -134,9 +135,18 @@ const sshDestructive: DestructiveRule[] = [
 const scpSafe: SafeRule[] = [
   { name: "scp-help", re: /scp\b.*\s--?h(elp)?\b/ },
   { name: "scp-download", re: /scp\b.*\s(?:\S+@)?\S+:\S+\s+\.\S*\s*$/ },
-  { name: "scp-to-home", re: /scp\b.*\s(?:(?:\S+@)?\S+:)?~\/(?!\S*\.\.\/)\S+\s*$/ },
-  { name: "scp-to-tmp", re: /scp\b.*\s(?:(?:\S+@)?\S+:)?\/tmp\/(?!\S*\.\.\/)\S*\s*$/ },
-  { name: "scp-to-var-tmp", re: /scp\b.*\s(?:(?:\S+@)?\S+:)?\/var\/tmp(?:\/(?!\S*\.\.\/)\S*)?\s*$/ },
+  {
+    name: "scp-to-home",
+    re: /scp\b.*\s(?:(?:\S+@)?\S+:)?~\/(?!\S*\.\.\/)\S+\s*$/,
+  },
+  {
+    name: "scp-to-tmp",
+    re: /scp\b.*\s(?:(?:\S+@)?\S+:)?\/tmp\/(?!\S*\.\.\/)\S*\s*$/,
+  },
+  {
+    name: "scp-to-var-tmp",
+    re: /scp\b.*\s(?:(?:\S+@)?\S+:)?\/var\/tmp(?:\/(?!\S*\.\.\/)\S*)?\s*$/,
+  },
 ];
 
 const scpDestructive: DestructiveRule[] = [
@@ -296,5 +306,9 @@ export const remotePack: Pack = {
     "ssh, scp, and rsync",
   keywords: ["ssh", "ssh-keygen", "ssh-keyscan", "scp", "rsync"],
   safePatterns: [...sshSafe, ...scpSafe, ...rsyncSafe],
-  destructivePatterns: [...sshDestructive, ...scpDestructive, ...rsyncDestructive],
+  destructivePatterns: [
+    ...sshDestructive,
+    ...scpDestructive,
+    ...rsyncDestructive,
+  ],
 };

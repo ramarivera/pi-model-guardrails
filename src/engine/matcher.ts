@@ -77,10 +77,7 @@ function guardedTest(
  * strictest-wins comparison at the registry level — a degraded engine that is
  * armed to fail closed must not be silently outvoted.
  */
-function failClosedDecision(
-  pack: Pack,
-  segment: string,
-): EngineDecision {
+function failClosedDecision(pack: Pack, segment: string): EngineDecision {
   return {
     decision: "deny",
     blocked: true,
@@ -227,7 +224,9 @@ export function matchPack(
           packId: decision.packId ?? pack.id,
           ruleId:
             decision.ruleId ??
-            (decision.ruleName ? ruleId(pack.id, decision.ruleName) : undefined),
+            (decision.ruleName
+              ? ruleId(pack.id, decision.ruleName)
+              : undefined),
           blocked: decision.blocked ?? decision.decision === "deny",
           segment: decision.segment ?? seg.raw,
         };

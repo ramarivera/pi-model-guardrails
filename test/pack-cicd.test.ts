@@ -12,12 +12,11 @@
 // secret/variable-delete (both ported faithfully). Tested here in isolation, the
 // cicd pack reports its own gh-actions-* rule names.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
+import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { cicdPack } from "../src/engine/packs/cicd.ts";
 import { buildRegistry } from "../src/engine/registry.ts";
-import { evaluateCommand } from "../src/engine/evaluate.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([cicdPack]);
@@ -31,7 +30,11 @@ function blocks(cmd: string, ruleName: string, severity?: Severity): void {
 
 function allows(cmd: string): void {
   const d = evaluateCommand(cmd, registry);
-  assert.equal(d.decision, "allow", `expected ${cmd} to be allowed, got ${d.ruleName}`);
+  assert.equal(
+    d.decision,
+    "allow",
+    `expected ${cmd} to be allowed, got ${d.ruleName}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -51,18 +54,38 @@ test("github_actions: allows safe list/view variants", () => {
 test("github_actions: blocks each destructive pattern with severity", () => {
   blocks("gh secret delete FOO", "gh-actions-secret-remove", "high");
   blocks("gh secret remove FOO", "gh-actions-secret-remove", "high");
-  blocks("gh -R owner/repo secret remove FOO", "gh-actions-secret-remove", "high");
+  blocks(
+    "gh -R owner/repo secret remove FOO",
+    "gh-actions-secret-remove",
+    "high",
+  );
   blocks("gh variable delete FOO", "gh-actions-variable-remove", "medium");
   blocks("gh variable remove FOO", "gh-actions-variable-remove", "medium");
   blocks("gh workflow disable 123", "gh-actions-workflow-disable", "low");
   blocks("gh run cancel 456", "gh-actions-run-cancel", "low");
-  blocks("gh api -X DELETE repos/o/r/actions/secrets/FOO", "gh-actions-api-delete-secrets", "high");
-  blocks("gh api --method DELETE /repos/o/r/actions/variables/FOO", "gh-actions-api-delete-variables", "medium");
+  blocks(
+    "gh api -X DELETE repos/o/r/actions/secrets/FOO",
+    "gh-actions-api-delete-secrets",
+    "high",
+  );
+  blocks(
+    "gh api --method DELETE /repos/o/r/actions/variables/FOO",
+    "gh-actions-api-delete-variables",
+    "medium",
+  );
 });
 
 test("github_actions: compact -XDELETE and --method=DELETE forms", () => {
-  blocks("gh api -XDELETE repos/o/r/actions/secrets/FOO", "gh-actions-api-delete-secrets", "high");
-  blocks("gh api --method=DELETE /repos/o/r/actions/variables/FOO", "gh-actions-api-delete-variables", "medium");
+  blocks(
+    "gh api -XDELETE repos/o/r/actions/secrets/FOO",
+    "gh-actions-api-delete-secrets",
+    "high",
+  );
+  blocks(
+    "gh api --method=DELETE /repos/o/r/actions/variables/FOO",
+    "gh-actions-api-delete-variables",
+    "medium",
+  );
 });
 
 test("github_actions: api GET safe pattern does not mask DELETE later", () => {
@@ -84,13 +107,29 @@ test("github_actions: unrelated commands allow", () => {
 test("gitlab_ci: blocks destructive operations", () => {
   blocks("glab variable delete CI_TOKEN", "glab-variable-delete", "high");
   blocks("glab ci delete 123", "glab-ci-delete", "medium");
-  blocks("glab api -X DELETE projects/1/variables/FOO", "glab-api-delete-variables", "high");
-  blocks("gitlab-runner unregister --all-runners", "gitlab-runner-unregister", "critical");
+  blocks(
+    "glab api -X DELETE projects/1/variables/FOO",
+    "glab-api-delete-variables",
+    "high",
+  );
+  blocks(
+    "gitlab-runner unregister --all-runners",
+    "gitlab-runner-unregister",
+    "critical",
+  );
 });
 
 test("gitlab_ci: compact -XDELETE and --method=DELETE forms", () => {
-  blocks("glab api -XDELETE projects/1/variables/FOO", "glab-api-delete-variables", "high");
-  blocks("glab api --method=DELETE projects/1/variables/FOO", "glab-api-delete-variables", "high");
+  blocks(
+    "glab api -XDELETE projects/1/variables/FOO",
+    "glab-api-delete-variables",
+    "high",
+  );
+  blocks(
+    "glab api --method=DELETE projects/1/variables/FOO",
+    "glab-api-delete-variables",
+    "high",
+  );
 });
 
 test("gitlab_ci: allows safe commands", () => {
@@ -135,8 +174,16 @@ test("jenkins: blocks jenkins-cli destructive subcommands", () => {
 });
 
 test("jenkins: blocks curl POST doDelete", () => {
-  blocks("curl -X POST https://jenkins.example/job/my-job/doDelete", "jenkins-curl-do-delete", "critical");
-  blocks("curl https://jenkins.example/job/my-job/doDelete --request=POST", "jenkins-curl-do-delete", "critical");
+  blocks(
+    "curl -X POST https://jenkins.example/job/my-job/doDelete",
+    "jenkins-curl-do-delete",
+    "critical",
+  );
+  blocks(
+    "curl https://jenkins.example/job/my-job/doDelete --request=POST",
+    "jenkins-curl-do-delete",
+    "critical",
+  );
 });
 
 test("jenkins: allows safe commands", () => {
@@ -146,7 +193,9 @@ test("jenkins: allows safe commands", () => {
   allows("java -jar jenkins-cli.jar -s http://jenkins.local/ list-views");
   allows("java -jar jenkins-cli.jar -s http://jenkins.local/ list-plugins");
   allows("java -jar jenkins-cli.jar -s http://jenkins.local/ get-node agent-1");
-  allows("java -jar jenkins-cli.jar -s http://jenkins.local/ get-credentials system::system::foo");
+  allows(
+    "java -jar jenkins-cli.jar -s http://jenkins.local/ get-credentials system::system::foo",
+  );
   allows("jenkins-cli build my-job");
   allows("curl -X GET https://jenkins.example/api/json");
 });
@@ -156,15 +205,27 @@ test("jenkins: allows safe commands", () => {
 // ---------------------------------------------------------------------------
 
 test("circleci: blocks destructive operations", () => {
-  blocks("circleci context delete org/my-org context/prod", "circleci-context-delete", "critical");
+  blocks(
+    "circleci context delete org/my-org context/prod",
+    "circleci-context-delete",
+    "critical",
+  );
   blocks(
     "circleci context remove-secret org/my-org context/prod AWS_ACCESS_KEY_ID",
     "circleci-context-remove-secret",
     "high",
   );
   blocks("circleci orb delete my-org/my-orb", "circleci-orb-delete", "high");
-  blocks("circleci namespace delete my-org", "circleci-namespace-delete", "critical");
-  blocks("circleci pipeline delete 123456", "circleci-pipeline-delete", "medium");
+  blocks(
+    "circleci namespace delete my-org",
+    "circleci-namespace-delete",
+    "critical",
+  );
+  blocks(
+    "circleci pipeline delete 123456",
+    "circleci-pipeline-delete",
+    "medium",
+  );
   blocks(
     "curl -X DELETE https://circleci.com/api/v2/project/gh/org/repo/envvar/FOO",
     "circleci-api-delete-envvar",

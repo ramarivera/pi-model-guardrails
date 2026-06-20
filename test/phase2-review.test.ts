@@ -42,10 +42,20 @@ test("a warn during post-recovery cooldown re-arms GATED (not WATCH)", () => {
     stateEpoch: 3,
     cooldownRemaining: 2,
   };
-  const r = transition({ current: inCooldown, deterministic: warn, meta, config: cfg });
+  const r = transition({
+    current: inCooldown,
+    deterministic: warn,
+    meta,
+    config: cfg,
+  });
   assert.equal(r.next.state, "GATED");
   // and outside cooldown the same warn takes the gentle WATCH path
-  const fresh = transition({ current: initialState(), deterministic: warn, meta, config: cfg });
+  const fresh = transition({
+    current: initialState(),
+    deterministic: warn,
+    meta,
+    config: cfg,
+  });
   assert.equal(fresh.next.state, "WATCH");
 });
 
@@ -58,17 +68,32 @@ test("an unrecognized persisted state fails closed (HALTED)", () => {
     stateEpoch: 0,
     cooldownRemaining: 0,
   };
-  const r = transition({ current: corrupt, deterministic: clean, meta, config: cfg });
+  const r = transition({
+    current: corrupt,
+    deterministic: clean,
+    meta,
+    config: cfg,
+  });
   assert.equal(r.action, "halt");
   assert.equal(r.next.state, "HALTED");
 });
 
 // FIX: WATCH->COMPLIANT recovery returned a contradictory gate-required action.
 test("the WATCH->COMPLIANT recovery call returns action 'allow'", () => {
-  let s = transition({ current: initialState(), deterministic: warn, meta, config: cfg }).next;
+  let s = transition({
+    current: initialState(),
+    deterministic: warn,
+    meta,
+    config: cfg,
+  }).next;
   assert.equal(s.state, "WATCH");
   s = transition({ current: s, deterministic: clean, meta, config: cfg }).next; // streak 1
-  const last = transition({ current: s, deterministic: clean, meta, config: cfg });
+  const last = transition({
+    current: s,
+    deterministic: clean,
+    meta,
+    config: cfg,
+  });
   assert.equal(last.next.state, "COMPLIANT");
   assert.equal(last.action, "allow");
 });
@@ -92,7 +117,12 @@ test("a constraint with omitted allowlistable forbids allowlist relaxation", () 
     allowlist: [{ rule: "core.git:push-force", reason: "exception" }],
   };
   const verdict = resolvePolicy(
-    { decision: "deny", blocked: true, ruleId: "core.git:push-force", severity: "high" },
+    {
+      decision: "deny",
+      blocked: true,
+      ruleId: "core.git:push-force",
+      severity: "high",
+    },
     "git push --force",
     policy,
   );

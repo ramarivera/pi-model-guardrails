@@ -1,7 +1,8 @@
 // test/engine-heredoc.test.ts
-import test from "node:test";
+
 import assert from "node:assert/strict";
-import { extractHeredocBodies, checkTriggers } from "../src/engine/heredoc.ts";
+import test from "node:test";
+import { checkTriggers, extractHeredocBodies } from "../src/engine/heredoc.ts";
 
 // ---------------------------------------------------------------------------
 // Tier 1: trigger detection (ported from heredoc.rs tier1_triggers tests)
@@ -88,23 +89,33 @@ test("heredoc inside command substitution with outer quotes still triggers", () 
 // ---------------------------------------------------------------------------
 
 test("extracts inline script single quotes", () => {
-  assert.deepEqual(extractHeredocBodies("python -c 'import os'"), ["import os"]);
+  assert.deepEqual(extractHeredocBodies("python -c 'import os'"), [
+    "import os",
+  ]);
 });
 
 test("extracts inline script double quotes", () => {
-  assert.deepEqual(extractHeredocBodies('bash -c "echo hello"'), ["echo hello"]);
+  assert.deepEqual(extractHeredocBodies('bash -c "echo hello"'), [
+    "echo hello",
+  ]);
 });
 
 test("extracts inline script with intervening flags", () => {
-  assert.deepEqual(extractHeredocBodies("python -I -c 'import os'"), ["import os"]);
+  assert.deepEqual(extractHeredocBodies("python -I -c 'import os'"), [
+    "import os",
+  ]);
 });
 
 test("extracts inline script with combined shell flags", () => {
-  assert.deepEqual(extractHeredocBodies("bash -lc 'echo hello'"), ["echo hello"]);
+  assert.deepEqual(extractHeredocBodies("bash -lc 'echo hello'"), [
+    "echo hello",
+  ]);
 });
 
 test("extracts inline script with combined node flags", () => {
-  assert.deepEqual(extractHeredocBodies("node -pe 'process.version'"), ["process.version"]);
+  assert.deepEqual(extractHeredocBodies("node -pe 'process.version'"), [
+    "process.version",
+  ]);
 });
 
 test("extracts inline script with interleaved perl flags", () => {
@@ -112,11 +123,15 @@ test("extracts inline script with interleaved perl flags", () => {
 });
 
 test("extracts powershell -Command body (single quote)", () => {
-  assert.deepEqual(extractHeredocBodies("powershell -Command 'echo hi'"), ["echo hi"]);
+  assert.deepEqual(extractHeredocBodies("powershell -Command 'echo hi'"), [
+    "echo hi",
+  ]);
 });
 
 test("extracts powershell.exe -Command body (double quote)", () => {
-  assert.deepEqual(extractHeredocBodies('powershell.exe -Command "echo hi"'), ["echo hi"]);
+  assert.deepEqual(extractHeredocBodies('powershell.exe -Command "echo hi"'), [
+    "echo hi",
+  ]);
 });
 
 test("extracts pwsh -c body", () => {
@@ -125,21 +140,26 @@ test("extracts pwsh -c body", () => {
 
 test("extracts powershell quoted full path -Command body", () => {
   const cmd =
-    '"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command \'echo hi\'';
+    "\"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -Command 'echo hi'";
   const bodies = extractHeredocBodies(cmd);
-  assert.ok(bodies.includes("echo hi"), `expected 'echo hi' in ${JSON.stringify(bodies)}`);
+  assert.ok(
+    bodies.includes("echo hi"),
+    `expected 'echo hi' in ${JSON.stringify(bodies)}`,
+  );
 });
 
 test("extracts multiple inline scripts", () => {
-  assert.deepEqual(extractHeredocBodies("python -c 'code1' && ruby -e 'code2'"), [
-    "code1",
-    "code2",
-  ]);
+  assert.deepEqual(
+    extractHeredocBodies("python -c 'code1' && ruby -e 'code2'"),
+    ["code1", "code2"],
+  );
 });
 
 test("extracts versioned interpreter scripts", () => {
   assert.deepEqual(
-    extractHeredocBodies("python3.11 -c 'import os' && nodejs18 -e 'console.log(1)'"),
+    extractHeredocBodies(
+      "python3.11 -c 'import os' && nodejs18 -e 'console.log(1)'",
+    ),
     ["import os", "console.log(1)"],
   );
 });
@@ -149,7 +169,9 @@ test("extracts versioned interpreter scripts", () => {
 // ---------------------------------------------------------------------------
 
 test("extracts here-string", () => {
-  assert.deepEqual(extractHeredocBodies("cat <<< 'hello world'"), ["hello world"]);
+  assert.deepEqual(extractHeredocBodies("cat <<< 'hello world'"), [
+    "hello world",
+  ]);
 });
 
 test("extracts here-string with nested quotes (single outer)", () => {
@@ -159,7 +181,7 @@ test("extracts here-string with nested quotes (single outer)", () => {
 });
 
 test("extracts here-string with nested quotes (double outer)", () => {
-  assert.deepEqual(extractHeredocBodies('cat <<< "hello \'world\' test"'), [
+  assert.deepEqual(extractHeredocBodies("cat <<< \"hello 'world' test\""), [
     "hello 'world' test",
   ]);
 });
@@ -169,16 +191,23 @@ test("extracts here-string with nested quotes (double outer)", () => {
 // ---------------------------------------------------------------------------
 
 test("extracts basic heredoc body", () => {
-  assert.deepEqual(extractHeredocBodies("cat << EOF\nline1\nline2\nEOF"), ["line1\nline2"]);
+  assert.deepEqual(extractHeredocBodies("cat << EOF\nline1\nline2\nEOF"), [
+    "line1\nline2",
+  ]);
 });
 
 test("extracts heredoc ignoring trailing tokens on delimiter line", () => {
-  const cmd = "python3 <<EOF | cat\nimport shutil\nshutil.rmtree('/tmp/test')\nEOF";
-  assert.deepEqual(extractHeredocBodies(cmd), ["import shutil\nshutil.rmtree('/tmp/test')"]);
+  const cmd =
+    "python3 <<EOF | cat\nimport shutil\nshutil.rmtree('/tmp/test')\nEOF";
+  assert.deepEqual(extractHeredocBodies(cmd), [
+    "import shutil\nshutil.rmtree('/tmp/test')",
+  ]);
 });
 
 test("extracts heredoc with CRLF line endings", () => {
-  assert.deepEqual(extractHeredocBodies("cat <<EOF\r\nline1\r\nEOF\r\n"), ["line1"]);
+  assert.deepEqual(extractHeredocBodies("cat <<EOF\r\nline1\r\nEOF\r\n"), [
+    "line1",
+  ]);
 });
 
 test("extracts tab-stripped heredoc body", () => {
@@ -188,9 +217,10 @@ test("extracts tab-stripped heredoc body", () => {
 });
 
 test("extracts indent-stripped heredoc body", () => {
-  assert.deepEqual(extractHeredocBodies("cat <<~ EOF\n    line1\n    line2\n    EOF"), [
-    "line1\nline2",
-  ]);
+  assert.deepEqual(
+    extractHeredocBodies("cat <<~ EOF\n    line1\n    line2\n    EOF"),
+    ["line1\nline2"],
+  );
 });
 
 test("extracts empty heredoc body", () => {
@@ -210,7 +240,9 @@ test("indent-stripped heredoc does not throw on multibyte whitespace", () => {
 
 test("parses dash-after-space as part of unquoted delimiter", () => {
   // `cat << -EOF` is a Standard heredoc whose delimiter is literal `-EOF`.
-  assert.deepEqual(extractHeredocBodies("cat << -EOF\nbody line\n-EOF"), ["body line"]);
+  assert.deepEqual(extractHeredocBodies("cat << -EOF\nbody line\n-EOF"), [
+    "body line",
+  ]);
 });
 
 test("tab-stripped quoted heredoc with space after dash", () => {
@@ -247,7 +279,9 @@ test("whitespace-only yields no bodies", () => {
 
 test("unterminated heredoc yields no body (fail-open skip)", () => {
   assert.deepEqual(
-    extractHeredocBodies("cat << EOF\nunterminated content without closing delimiter"),
+    extractHeredocBodies(
+      "cat << EOF\nunterminated content without closing delimiter",
+    ),
     [],
   );
 });

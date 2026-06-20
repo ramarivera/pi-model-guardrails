@@ -90,7 +90,10 @@ function verdictToSignal(v: PolicyVerdict): DeterministicSignal {
  * Evaluate one tool call through engine -> policy -> state machine.
  * `grader` is omitted in Phase 2; supply it in Phase 3 to enforce degraded mode.
  */
-export function guardToolCall(input: GuardInput, deps: GuardDeps): GuardOutcome {
+export function guardToolCall(
+  input: GuardInput,
+  deps: GuardDeps,
+): GuardOutcome {
   // When armed (any non-COMPLIANT state), the engine fails CLOSED on a guard
   // error (oversized input / match budget) — a degraded session refuses
   // ambiguous input rather than waving it through.

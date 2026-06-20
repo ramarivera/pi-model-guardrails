@@ -42,7 +42,10 @@ const safePatterns: SafeRule[] = [
   // dd to regular files is generally safe.
   { name: "dd-file-out", re: /dd\s+.*of=['"]?[^/\s'"]+\./ },
   // dd to /dev/null|zero|full is safe (discard output). Optional quotes.
-  { name: "dd-discard", re: /dd\s+.*of=['"]?\/dev\/(?:null|zero|full)['"]?(?:\s|$)/ },
+  {
+    name: "dd-discard",
+    re: /dd\s+.*of=['"]?\/dev\/(?:null|zero|full)['"]?(?:\s|$)/,
+  },
   // lsblk is safe (read-only).
   { name: "lsblk", re: /\blsblk\b/ },
   // fdisk -l (list) is safe.
@@ -101,10 +104,22 @@ const safePatterns: SafeRule[] = [
   },
   // --- dmsetup safe patterns ---
   { name: "dmsetup-ls", re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)/ },
-  { name: "dmsetup-status", re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)/ },
-  { name: "dmsetup-info", re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+info(?=\s|$)/ },
-  { name: "dmsetup-table", re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+table(?=\s|$)/ },
-  { name: "dmsetup-deps", re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+deps(?=\s|$)/ },
+  {
+    name: "dmsetup-status",
+    re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)/,
+  },
+  {
+    name: "dmsetup-info",
+    re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+info(?=\s|$)/,
+  },
+  {
+    name: "dmsetup-table",
+    re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+table(?=\s|$)/,
+  },
+  {
+    name: "dmsetup-deps",
+    re: /dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+deps(?=\s|$)/,
+  },
   // --- nbd-client safe patterns ---
   { name: "nbd-client-list", re: /nbd-client\s+-l\b/ },
   { name: "nbd-client-check", re: /nbd-client\s+.*-check\b/ },
@@ -141,7 +156,10 @@ const safePatterns: SafeRule[] = [
     re: /systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+list-(?:units|unit-files|sockets|timers)(?=\s|$)/,
   },
   // show is safe.
-  { name: "systemctl-show", re: /systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/ },
+  {
+    name: "systemctl-show",
+    re: /systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/,
+  },
   // is-active/is-enabled are safe.
   {
     name: "systemctl-is",
@@ -153,7 +171,10 @@ const safePatterns: SafeRule[] = [
     re: /systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+daemon-reload(?=\s|$)/,
   },
   // cat is safe (view unit file).
-  { name: "systemctl-cat", re: /systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cat(?=\s|$)/ },
+  {
+    name: "systemctl-cat",
+    re: /systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cat(?=\s|$)/,
+  },
   // journalctl is safe (logs).
   { name: "journalctl", re: /\bjournalctl\b/ },
 ];
@@ -201,7 +222,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "mkswap",
     re: /mkswap\s+/,
     severity: "high",
-    reason: "mkswap formats a partition as a swap area, ERASING any existing data.",
+    reason:
+      "mkswap formats a partition as a swap area, ERASING any existing data.",
   },
   {
     name: "wipefs",
@@ -219,20 +241,23 @@ const destructivePatterns: DestructiveRule[] = [
     name: "umount-force",
     re: /umount\s+.*-[a-z]*f/,
     severity: "high",
-    reason: "umount -f force unmounts which may cause data loss if device is in use.",
+    reason:
+      "umount -f force unmounts which may cause data loss if device is in use.",
   },
   {
     name: "losetup-device",
     re: /losetup\s+['"]?\/dev\/loop/,
     severity: "high",
-    reason: "losetup modifies loop device associations. Verify before proceeding.",
+    reason:
+      "losetup modifies loop device associations. Verify before proceeding.",
   },
   // --- mdadm destructive patterns ---
   {
     name: "mdadm-stop",
     re: /mdadm\s+(?:.*\s+)?(?:--stop|-S)\b/,
     severity: "high",
-    reason: "mdadm --stop shuts down a RAID array. Data may become inaccessible.",
+    reason:
+      "mdadm --stop shuts down a RAID array. Data may become inaccessible.",
   },
   {
     name: "mdadm-remove",
@@ -274,7 +299,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "btrfs-subvolume-delete",
     re: /btrfs\b.*?\s+subvolume\s+delete\b/,
     severity: "high",
-    reason: "btrfs subvolume delete PERMANENTLY removes a subvolume and all its data.",
+    reason:
+      "btrfs subvolume delete PERMANENTLY removes a subvolume and all its data.",
   },
   {
     name: "btrfs-device-remove",
@@ -294,13 +320,15 @@ const destructivePatterns: DestructiveRule[] = [
     name: "btrfs-balance",
     re: /btrfs\b.*?\s+balance\s+start\b/,
     severity: "high",
-    reason: "btrfs balance redistributes data across devices. Can be slow and disruptive.",
+    reason:
+      "btrfs balance redistributes data across devices. Can be slow and disruptive.",
   },
   {
     name: "btrfs-check-repair",
     re: /btrfs\b.*?\s+check\s+(?:.*\s+)?--repair\b/,
     severity: "high",
-    reason: "btrfs check --repair is DANGEROUS and can cause data loss. Backup first!",
+    reason:
+      "btrfs check --repair is DANGEROUS and can cause data loss. Backup first!",
   },
   {
     name: "btrfs-rescue",
@@ -328,13 +356,15 @@ const destructivePatterns: DestructiveRule[] = [
     name: "dmsetup-remove-all",
     re: /dmsetup\b.*?\s+remove_all\b/,
     severity: "high",
-    reason: "dmsetup remove_all removes ALL device-mapper devices. Extremely dangerous!",
+    reason:
+      "dmsetup remove_all removes ALL device-mapper devices. Extremely dangerous!",
   },
   {
     name: "dmsetup-wipe-table",
     re: /dmsetup\b.*?\s+wipe_table\b/,
     severity: "high",
-    reason: "dmsetup wipe_table replaces the device table, causing all I/O to fail.",
+    reason:
+      "dmsetup wipe_table replaces the device table, causing all I/O to fail.",
   },
   {
     name: "dmsetup-clear",
@@ -346,7 +376,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "dmsetup-load",
     re: /dmsetup\b.*?\s+load\b/,
     severity: "high",
-    reason: "dmsetup load changes device mapping. Verify the new table is correct.",
+    reason:
+      "dmsetup load changes device mapping. Verify the new table is correct.",
   },
   {
     name: "dmsetup-create",
@@ -382,7 +413,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "vgremove",
     re: /\bvgremove\b/,
     severity: "high",
-    reason: "vgremove DELETES a volume group and all logical volumes within it.",
+    reason:
+      "vgremove DELETES a volume group and all logical volumes within it.",
   },
   {
     name: "lvremove",
@@ -394,7 +426,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "vgreduce",
     re: /\bvgreduce\b/,
     severity: "high",
-    reason: "vgreduce removes a physical volume from a volume group. Data may be lost.",
+    reason:
+      "vgreduce removes a physical volume from a volume group. Data may be lost.",
   },
   {
     name: "lvreduce",
@@ -443,7 +476,8 @@ const destructivePatterns: DestructiveRule[] = [
       },
       {
         command: "chmod u+x {path}",
-        description: "Only add execute for owner instead of world-writable permissions",
+        description:
+          "Only add execute for owner instead of world-writable permissions",
         platform: "all",
       },
     ],
@@ -607,7 +641,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "systemctl-power",
     re: /systemctl\b.*?\s+(?:poweroff|reboot|halt|suspend|hibernate)\b/,
     severity: "critical",
-    reason: "systemctl poweroff/reboot/halt will shut down or restart the system.",
+    reason:
+      "systemctl poweroff/reboot/halt will shut down or restart the system.",
     explanation:
       "This immediately initiates a system power state change. Poweroff and halt " +
       "shut down the machine, reboot restarts it, and suspend/hibernate save state " +
@@ -615,7 +650,7 @@ const destructivePatterns: DestructiveRule[] = [
       "will be interrupted.\n\n" +
       "Check who is logged in:\n  " +
       "who\n\n" +
-      'Schedule a graceful shutdown instead:\n  ' +
+      "Schedule a graceful shutdown instead:\n  " +
       'shutdown +5 "Rebooting for maintenance"',
   },
   {

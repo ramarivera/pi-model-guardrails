@@ -14,7 +14,9 @@ test("no match => allow (allowReason no_match)", () => {
     name: "git",
     keywords: ["git"],
     safePatterns: [],
-    destructivePatterns: [{ name: "r", re: /git\s+reset\s+--hard/, severity: "high", reason: "r" }],
+    destructivePatterns: [
+      { name: "r", re: /git\s+reset\s+--hard/, severity: "high", reason: "r" },
+    ],
   };
   const reg = buildRegistry([git]);
   const d = evaluateCommand("git status", reg);
@@ -31,7 +33,9 @@ test("quick-reject: command with no matching keyword allows without touching pac
     safePatterns: [],
     // A pattern that would match 'ls' if it were ever checked. It must NOT be,
     // because the keyword 'git' is absent.
-    destructivePatterns: [{ name: "trap", re: /ls/, severity: "critical", reason: "trap" }],
+    destructivePatterns: [
+      { name: "trap", re: /ls/, severity: "critical", reason: "trap" },
+    ],
   };
   const reg = buildRegistry([git]);
   const d = evaluateCommand("ls -la", reg);
@@ -45,14 +49,18 @@ test("strictest-wins across two packs: critical deny beats medium warn regardles
     name: "warn",
     keywords: ["danger"],
     safePatterns: [],
-    destructivePatterns: [{ name: "w", re: /danger/, severity: "medium", reason: "medium" }],
+    destructivePatterns: [
+      { name: "w", re: /danger/, severity: "medium", reason: "medium" },
+    ],
   };
   const critPack: Pack = {
     id: "b.crit",
     name: "crit",
     keywords: ["danger"],
     safePatterns: [],
-    destructivePatterns: [{ name: "c", re: /danger/, severity: "critical", reason: "critical" }],
+    destructivePatterns: [
+      { name: "c", re: /danger/, severity: "critical", reason: "critical" },
+    ],
   };
   // warn pack first in declaration order — strictest-wins must still pick crit.
   const reg = buildRegistry([warnPack, critPack]);
@@ -70,14 +78,28 @@ test("strictest-wins tie => earlier pack (declaration order) wins attribution", 
     name: "git",
     keywords: ["git"],
     safePatterns: [],
-    destructivePatterns: [{ name: "reset-hard", re: /git\s+reset\s+--hard/, severity: "critical", reason: "core" }],
+    destructivePatterns: [
+      {
+        name: "reset-hard",
+        re: /git\s+reset\s+--hard/,
+        severity: "critical",
+        reason: "core",
+      },
+    ],
   };
   const strictGit: Pack = {
     id: "strict_git",
     name: "strict git",
     keywords: ["git"],
     safePatterns: [],
-    destructivePatterns: [{ name: "reset", re: /git\s+reset/, severity: "critical", reason: "strict" }],
+    destructivePatterns: [
+      {
+        name: "reset",
+        re: /git\s+reset/,
+        severity: "critical",
+        reason: "strict",
+      },
+    ],
   };
   const reg = buildRegistry([coreGit, strictGit]);
   const d = evaluateCommand("git reset --hard", reg);
@@ -94,19 +116,32 @@ test("per-pack safe short-circuit does NOT leak across packs (compound bypass gu
     name: "git",
     keywords: ["git"],
     safePatterns: [{ name: "checkout-b", re: /git\s+checkout\s+-b\s+\S+/ }],
-    destructivePatterns: [{ name: "reset", re: /git\s+reset/, severity: "high", reason: "reset" }],
+    destructivePatterns: [
+      { name: "reset", re: /git\s+reset/, severity: "high", reason: "reset" },
+    ],
   };
   const rmPack: Pack = {
     id: "core.filesystem",
     name: "fs",
     keywords: ["rm"],
     safePatterns: [],
-    destructivePatterns: [{ name: "rm-root", re: /rm\s+-rf\s+\//, severity: "critical", reason: "rm -rf /" }],
+    destructivePatterns: [
+      {
+        name: "rm-root",
+        re: /rm\s+-rf\s+\//,
+        severity: "critical",
+        reason: "rm -rf /",
+      },
+    ],
   };
   const reg = buildRegistry([safePack, rmPack]);
   const cmd = "git checkout -b foo && rm -rf /";
   const d = evaluateCommand(cmd, reg);
-  assert.equal(d.decision, "deny", "rm -rf / must not be shielded by git pack's safe pattern");
+  assert.equal(
+    d.decision,
+    "deny",
+    "rm -rf / must not be shielded by git pack's safe pattern",
+  );
   assert.equal(d.severity, "critical");
   assert.equal(d.packId, "core.filesystem");
 });
@@ -119,7 +154,9 @@ test("ReDoS guard: inputMaxLength bites BEFORE budget (fail-open by default)", (
     safePatterns: [],
     // A classic catastrophic-backtracking shape. With the length cap biting
     // first, this regex is never executed on the oversized input.
-    destructivePatterns: [{ name: "redos", re: /(a+)+$/, severity: "critical", reason: "redos" }],
+    destructivePatterns: [
+      { name: "redos", re: /(a+)+$/, severity: "critical", reason: "redos" },
+    ],
   };
   const reg = buildRegistry([evil]);
   const long = "a".repeat(5000) + "!"; // 5001 chars, over an 8-char cap
@@ -135,7 +172,9 @@ test("ReDoS guard: oversized input with failClosed => critical deny", () => {
     name: "evil",
     keywords: ["a"],
     safePatterns: [],
-    destructivePatterns: [{ name: "redos", re: /(a+)+$/, severity: "critical", reason: "redos" }],
+    destructivePatterns: [
+      { name: "redos", re: /(a+)+$/, severity: "critical", reason: "redos" },
+    ],
   };
   const reg = buildRegistry([evil]);
   const long = "a".repeat(5000);
@@ -157,7 +196,9 @@ test("warn-only match returns warn (not blocked)", () => {
     name: "warn",
     keywords: ["meh"],
     safePatterns: [],
-    destructivePatterns: [{ name: "w", re: /meh/, severity: "medium", reason: "meh" }],
+    destructivePatterns: [
+      { name: "w", re: /meh/, severity: "medium", reason: "meh" },
+    ],
   };
   const reg = buildRegistry([warnPack]);
   const d = evaluateCommand("meh", reg);

@@ -50,12 +50,24 @@ const registry = buildRegistry([coreGitPack, coreFilesystemPack]);
 // input -> reason. Skipped from decision parity until the referenced work lands.
 const DECISION_EXCLUSIONS = new Map<string, string>([
   // 1. PENDING_PACKS (task #5, Phase 4)
-  ["echo $(docker system prune -a --volumes)", "pending pack: containers.docker"],
+  [
+    "echo $(docker system prune -a --volumes)",
+    "pending pack: containers.docker",
+  ],
   ["docker system prune", "pending pack: containers.docker"],
-  ["cat <(docker system prune -a --volumes)", "pending pack: containers.docker"],
+  [
+    "cat <(docker system prune -a --volumes)",
+    "pending pack: containers.docker",
+  ],
   ["echo `velero backup delete nightly`", "pending pack: backup.velero"],
-  ['op item get $(op item delete "Prod Secret")', "pending pack: secrets.1password"],
-  ['echo "$(op item delete \\"Prod Secret\\")"', "pending pack: secrets.1password"],
+  [
+    'op item get $(op item delete "Prod Secret")',
+    "pending pack: secrets.1password",
+  ],
+  [
+    'echo "$(op item delete \\"Prod Secret\\")"',
+    "pending pack: secrets.1password",
+  ],
   ["DROP TABLE IF EXISTS foo;", "pending pack: database.*"],
   ["DROP DATABASE IF EXISTS foo;", "pending pack: database.*"],
   ["TRUNCATE TABLE foo RESTART IDENTITY;", "pending pack: database.*"],
@@ -73,7 +85,10 @@ const DECISION_EXCLUSIONS = new Map<string, string>([
 
 // input -> reason. Decision is correct; only ruleId attribution differs.
 const RULEID_EXCLUSIONS = new Map<string, string>([
-  ["git restore --worktree file.txt", "overlapping restore rules: -explicit vs base; decision (deny) correct"],
+  [
+    "git restore --worktree file.txt",
+    "overlapping restore rules: -explicit vs base; decision (deny) correct",
+  ],
 ]);
 
 test("differential golden corpus: decision parity with DCG", () => {
@@ -89,16 +104,29 @@ test("differential golden corpus: decision parity with DCG", () => {
       continue;
     }
     if (!ok) {
-      mismatches.push({ input: c.input, expected: c.expectedDecision, got: d.decision, gotRuleId: d.ruleId, module: c.module });
+      mismatches.push({
+        input: c.input,
+        expected: c.expectedDecision,
+        got: d.decision,
+        gotRuleId: d.ruleId,
+        module: c.module,
+      });
     }
   }
   const problems: string[] = [];
   if (mismatches.length > 0) {
-    const sample = mismatches.slice(0, 50).map((m) => `  ${JSON.stringify(m)}`).join("\n");
-    problems.push(`${mismatches.length} unexpected decision mismatch(es):\n${sample}`);
+    const sample = mismatches
+      .slice(0, 50)
+      .map((m) => `  ${JSON.stringify(m)}`)
+      .join("\n");
+    problems.push(
+      `${mismatches.length} unexpected decision mismatch(es):\n${sample}`,
+    );
   }
   if (staleExclusions.length > 0) {
-    problems.push(`${staleExclusions.length} DECISION_EXCLUSIONS now pass (remove them):\n  ${staleExclusions.join("\n  ")}`);
+    problems.push(
+      `${staleExclusions.length} DECISION_EXCLUSIONS now pass (remove them):\n  ${staleExclusions.join("\n  ")}`,
+    );
   }
   assert.equal(problems.length, 0, problems.join("\n\n"));
 });
@@ -107,23 +135,40 @@ test("differential golden corpus: ruleId parity where specified", () => {
   const mismatches: Array<Record<string, unknown>> = [];
   for (const c of corpus) {
     if (!c.expectedRuleId) continue;
-    if (DECISION_EXCLUSIONS.has(c.input) || RULEID_EXCLUSIONS.has(c.input)) continue;
+    if (DECISION_EXCLUSIONS.has(c.input) || RULEID_EXCLUSIONS.has(c.input))
+      continue;
     const d = evaluateCommand(c.input, registry);
     if (d.decision === c.expectedDecision && d.ruleId !== c.expectedRuleId) {
-      mismatches.push({ input: c.input, expectedRuleId: c.expectedRuleId, got: d.ruleId });
+      mismatches.push({
+        input: c.input,
+        expectedRuleId: c.expectedRuleId,
+        got: d.ruleId,
+      });
     }
   }
   if (mismatches.length > 0) {
-    const sample = mismatches.slice(0, 50).map((m) => `  ${JSON.stringify(m)}`).join("\n");
-    assert.fail(`${mismatches.length} unexpected ruleId mismatch(es):\n${sample}`);
+    const sample = mismatches
+      .slice(0, 50)
+      .map((m) => `  ${JSON.stringify(m)}`)
+      .join("\n");
+    assert.fail(
+      `${mismatches.length} unexpected ruleId mismatch(es):\n${sample}`,
+    );
   }
 });
 
 // Visibility: how much of the corpus we assert vs defer.
 test("differential golden corpus: coverage report", () => {
   const total = corpus.length;
-  const excluded = corpus.filter((c) => DECISION_EXCLUSIONS.has(c.input)).length;
+  const excluded = corpus.filter((c) =>
+    DECISION_EXCLUSIONS.has(c.input),
+  ).length;
   const asserted = total - excluded;
-  console.log(`[corpus] ${asserted}/${total} cases asserted for decision parity; ${excluded} tracked-deferred`);
-  assert.ok(asserted / total >= 0.9, `expected >=90% of corpus asserted, got ${asserted}/${total}`);
+  console.log(
+    `[corpus] ${asserted}/${total} cases asserted for decision parity; ${excluded} tracked-deferred`,
+  );
+  assert.ok(
+    asserted / total >= 0.9,
+    `expected >=90% of corpus asserted, got ${asserted}/${total}`,
+  );
 });

@@ -51,7 +51,10 @@ function splitKeywordParts(keyword: string): string[] {
  * follow after AT LEAST ONE whitespace char (collapsed runs allowed). No word
  * boundaries are enforced in the quick-reject (`might_match`) path.
  */
-function keywordMatchesWithWhitespace(haystack: string, keyword: string): boolean {
+function keywordMatchesWithWhitespace(
+  haystack: string,
+  keyword: string,
+): boolean {
   const parts = splitKeywordParts(keyword);
   if (parts.length === 0) return false;
 

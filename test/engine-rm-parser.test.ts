@@ -5,12 +5,12 @@
 // sensitive-propagation tests). Exercises rmImperativeChecks (the public
 // contract) plus parseRmCommand / isPreRmPropagationRule.
 
-import test from "node:test";
 import assert from "node:assert/strict";
+import test from "node:test";
 import {
+  isPreRmPropagationRule,
   parseRmCommand,
   rmImperativeChecks,
-  isPreRmPropagationRule,
 } from "../src/engine/rm-parser.ts";
 import type { EngineDecision, SegmentContext } from "../src/engine/types.ts";
 
@@ -64,7 +64,10 @@ test("rm parser allows quoted $TMPDIR only for combined flags", () => {
   assert.equal(parseTag("rm -rf '$TMPDIR/foo'"), "deny:rm-rf-general:high");
   // double-quoted is unsafe for separate / long styles
   assert.equal(parseTag('rm -r -f "$TMPDIR/foo"'), "deny:rm-r-f-separate:high");
-  assert.equal(parseTag('rm -r -f "${TMPDIR}/foo"'), "deny:rm-r-f-separate:high");
+  assert.equal(
+    parseTag('rm -r -f "${TMPDIR}/foo"'),
+    "deny:rm-r-f-separate:high",
+  );
   assert.equal(
     parseTag('rm --recursive --force "$TMPDIR/foo"'),
     "deny:rm-recursive-force-long:high",
@@ -85,7 +88,10 @@ test("rm parser allows quoted $TMPDIR only for combined flags", () => {
 
 test("rm parser: ${TMPDIR_NOT} is not a safe temp var", () => {
   // DCG test_tmpdir_brace_requires_exact_var_name
-  assert.equal(parseTag("rm -rf ${TMPDIR_NOT}/junk"), "deny:rm-rf-general:high");
+  assert.equal(
+    parseTag("rm -rf ${TMPDIR_NOT}/junk"),
+    "deny:rm-rf-general:high",
+  );
 });
 
 test("rm parser: combined flags general High on non-temp paths", () => {
@@ -153,14 +159,21 @@ test("rm parser: long-flag root/home is Critical", () => {
     "rm --recursive --force \\/",
     "rm --recursive --force $HOME",
   ]) {
-    assert.equal(parseTag(cmd), "deny:rm-recursive-force-root-home:critical", cmd);
+    assert.equal(
+      parseTag(cmd),
+      "deny:rm-recursive-force-root-home:critical",
+      cmd,
+    );
   }
 });
 
 test("rm parser: parent-dir traversal is NOT temp-safe (Critical via leading /)", () => {
   // DCG test_rm_parser_traversal_blocked + test_path_traversal_blocked
   assert.equal(parseTag("rm -rf /tmp/../etc"), "deny:rm-rf-root-home:critical");
-  assert.equal(parseTag("rm -rf /var/tmp/../etc"), "deny:rm-rf-root-home:critical");
+  assert.equal(
+    parseTag("rm -rf /var/tmp/../etc"),
+    "deny:rm-rf-root-home:critical",
+  );
 });
 
 test("rm parser: trailing redirections do not break temp-safe allow", () => {
@@ -195,7 +208,10 @@ test("rm parser: trailing redirections do not mask a dangerous path", () => {
 test("rm parser: compound segments aggregate (Allow if any safe, else carry deny)", () => {
   // DCG test_rm_parser_handles_compound_segments
   assert.equal(parseTag("cp -al /tmp/a /tmp/b && rm -rf /tmp/b"), "allow");
-  assert.equal(parseTag("echo ok && rm -rf ./build"), "deny:rm-rf-general:high");
+  assert.equal(
+    parseTag("echo ok && rm -rf ./build"),
+    "deny:rm-rf-general:high",
+  );
 });
 
 test("rm parser: option terminator (--) handling", () => {
@@ -205,7 +221,10 @@ test("rm parser: option terminator (--) handling", () => {
   // `--` AFTER flags: saw_terminator disables the temp-safe allow -> general.
   assert.equal(parseTag("rm -rf -- /tmp/safe"), "deny:rm-rf-general:high");
   assert.equal(parseTag("rm -rf -- /"), "deny:rm-rf-root-home:critical");
-  assert.equal(parseTag("rm -r -f -- /"), "deny:rm-r-f-separate-root-home:critical");
+  assert.equal(
+    parseTag("rm -r -f -- /"),
+    "deny:rm-r-f-separate-root-home:critical",
+  );
   assert.equal(
     parseTag("rm --recursive --force -- /"),
     "deny:rm-recursive-force-root-home:critical",
@@ -223,7 +242,10 @@ test("rm parser: no rm command -> noMatch", () => {
 
 test("chain: removalCheck denies catastrophic rm", () => {
   assert.equal(chainTag("rm -rf /"), "deny:rm-rf-root-home:critical");
-  assert.equal(chainTag("rm -r -f /"), "deny:rm-r-f-separate-root-home:critical");
+  assert.equal(
+    chainTag("rm -r -f /"),
+    "deny:rm-r-f-separate-root-home:critical",
+  );
   assert.equal(
     chainTag("rm --recursive --force /"),
     "deny:rm-recursive-force-root-home:critical",
@@ -250,9 +272,18 @@ test("chain: sensitive cp/ln/rsync propagation then delete is Critical", () => {
       "sudo cp -a /home/user/.ssh /var/tmp/keys && rm --recursive --force /var/tmp/keys",
       "cp-sensitive-then-delete",
     ],
-    ["ln -s /etc /tmp/x && rm -rf /tmp/x/.", "ln-symlink-sensitive-then-delete"],
-    ["ln -sf $HOME /tmp/home && rm -rf /tmp/home/.", "ln-symlink-sensitive-then-delete"],
-    ["rsync -a /etc/ /tmp/dest/ && rm -rf /tmp/dest", "rsync-sensitive-then-delete"],
+    [
+      "ln -s /etc /tmp/x && rm -rf /tmp/x/.",
+      "ln-symlink-sensitive-then-delete",
+    ],
+    [
+      "ln -sf $HOME /tmp/home && rm -rf /tmp/home/.",
+      "ln-symlink-sensitive-then-delete",
+    ],
+    [
+      "rsync -a /etc/ /tmp/dest/ && rm -rf /tmp/dest",
+      "rsync-sensitive-then-delete",
+    ],
     [
       "rsync --archive /home/user/ /var/tmp/home/ && rm -f -r /var/tmp/home",
       "rsync-sensitive-then-delete",
@@ -299,7 +330,10 @@ test("chain: propagation deny wins even when the trailing rm targets a safe temp
 
 test("isPreRmPropagationRule recognizes the three propagation rule names", () => {
   assert.equal(isPreRmPropagationRule("cp-sensitive-then-delete"), true);
-  assert.equal(isPreRmPropagationRule("ln-symlink-sensitive-then-delete"), true);
+  assert.equal(
+    isPreRmPropagationRule("ln-symlink-sensitive-then-delete"),
+    true,
+  );
   assert.equal(isPreRmPropagationRule("rsync-sensitive-then-delete"), true);
   assert.equal(isPreRmPropagationRule("rm-rf-general"), false);
   assert.equal(isPreRmPropagationRule(undefined), false);

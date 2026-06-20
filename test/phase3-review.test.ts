@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { type GradeInput, cacheKey, grade, withTimeout } from "../src/grade.ts";
+import { cacheKey, type GradeInput, grade, withTimeout } from "../src/grade.ts";
 import { defaultMachineConfig, transition } from "../src/state/machine.ts";
 import type {
   CallMeta,
@@ -12,7 +12,11 @@ import type {
 } from "../src/state/types.ts";
 
 const cfg = defaultMachineConfig();
-const mutating: CallMeta = { toolName: "bash", isMutating: true, isTrivial: false };
+const mutating: CallMeta = {
+  toolName: "bash",
+  isMutating: true,
+  isTrivial: false,
+};
 const cleanDet: DeterministicSignal = {
   blocked: false,
   inviolable: false,
@@ -29,7 +33,12 @@ const compliant: GraderSignal = {
 // FIX: WATCH wrongly blocked a grader-approved clean mutating call.
 test("WATCH: a grader-approved clean mutating call is ALLOWED (not held)", () => {
   const r = transition({
-    current: { state: "WATCH", cleanStreak: 0, stateEpoch: 1, cooldownRemaining: 0 },
+    current: {
+      state: "WATCH",
+      cleanStreak: 0,
+      stateEpoch: 1,
+      cooldownRemaining: 0,
+    },
     deterministic: cleanDet,
     grader: compliant,
     meta: mutating,
@@ -47,9 +56,18 @@ test("RECOVERING streak advances bump the epoch (fresh cache key per step)", () 
     stateEpoch: 5,
     cooldownRemaining: 0,
   };
-  const r1 = transition({ current: s, deterministic: cleanDet, grader: compliant, meta: mutating, config: cfg });
+  const r1 = transition({
+    current: s,
+    deterministic: cleanDet,
+    grader: compliant,
+    meta: mutating,
+    config: cfg,
+  });
   assert.equal(r1.next.cleanStreak, 1);
-  assert.ok(r1.next.stateEpoch > s.stateEpoch, "epoch bumped on a streak advance");
+  assert.ok(
+    r1.next.stateEpoch > s.stateEpoch,
+    "epoch bumped on a streak advance",
+  );
 });
 
 // FIX: timeoutMs <= 0 disabled the only cancellation. It now floors instead.
@@ -57,7 +75,10 @@ test("withTimeout floors a non-positive timeout (never disables the gate)", asyn
   const never = new Promise<string>(() => {}); // never resolves
   const start = Date.now();
   await assert.rejects(() => withTimeout(never, 0, "timeout"));
-  assert.ok(Date.now() - start < 3000, "rejected via the floored timeout, did not hang");
+  assert.ok(
+    Date.now() - start < 3000,
+    "rejected via the floored timeout, did not hang",
+  );
 });
 
 const baseInput: GradeInput = {

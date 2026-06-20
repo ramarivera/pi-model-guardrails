@@ -314,7 +314,9 @@ function fromWatch(
   return {
     // Bump epoch on each streak advance so a repeated identical call can't be
     // served a cached grade to inflate the watch streak (the cache keys on epoch).
-    next: advanced ? bumpEpoch({ ...current, cleanStreak: nextStreak }) : current,
+    next: advanced
+      ? bumpEpoch({ ...current, cleanStreak: nextStreak })
+      : current,
     // A grader-confirmed clean call (graderPresent => the gate passed) is ALLOWED
     // to run; pre-grade it is gate-required (mutating) / allow (read-only).
     action: graderPresent ? "allow" : gateActionForWatch(meta, config),
@@ -398,7 +400,8 @@ function fromGated(
           grader.violatedConstraintId ?? current.violatedConstraintId,
       }),
       action: "allow",
-      reason: "Clean grade: call allowed, staging recovery (still grading every call).",
+      reason:
+        "Clean grade: call allowed, staging recovery (still grading every call).",
       transitioned: true,
     };
   }

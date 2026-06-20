@@ -34,17 +34,50 @@ import type { DestructiveRule, Pack, SafeRule } from "../types.ts";
 // ============================================================================
 
 const terraformSafe: SafeRule[] = [
-  { name: "terraform-plan", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+plan(?=\s|$)(?!\s+.*-destroy)/ },
-  { name: "terraform-init", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+init(?=\s|$)/ },
-  { name: "terraform-validate", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+validate(?=\s|$)/ },
-  { name: "terraform-fmt", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+fmt(?=\s|$)/ },
-  { name: "terraform-show", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/ },
-  { name: "terraform-output", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+output(?=\s|$)/ },
-  { name: "terraform-state-list", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+state\s+list(?=\s|$)/ },
-  { name: "terraform-state-show", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+state\s+show(?=\s|$)/ },
-  { name: "terraform-graph", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+graph(?=\s|$)/ },
-  { name: "terraform-version", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)/ },
-  { name: "terraform-providers", re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+providers(?=\s|$)/ },
+  {
+    name: "terraform-plan",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+plan(?=\s|$)(?!\s+.*-destroy)/,
+  },
+  {
+    name: "terraform-init",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+init(?=\s|$)/,
+  },
+  {
+    name: "terraform-validate",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+validate(?=\s|$)/,
+  },
+  {
+    name: "terraform-fmt",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+fmt(?=\s|$)/,
+  },
+  {
+    name: "terraform-show",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/,
+  },
+  {
+    name: "terraform-output",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+output(?=\s|$)/,
+  },
+  {
+    name: "terraform-state-list",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+state\s+list(?=\s|$)/,
+  },
+  {
+    name: "terraform-state-show",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+state\s+show(?=\s|$)/,
+  },
+  {
+    name: "terraform-graph",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+graph(?=\s|$)/,
+  },
+  {
+    name: "terraform-version",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)/,
+  },
+  {
+    name: "terraform-providers",
+    re: /terraform\b(?:\s+--?\S+(?:\s+\S+)?)*\s+providers(?=\s|$)/,
+  },
 ];
 
 const terraformDestructive: DestructiveRule[] = [
@@ -134,7 +167,8 @@ const terraformDestructive: DestructiveRule[] = [
     name: "terraform-force-unlock",
     re: /terraform\b.*?\bforce-unlock\b/,
     severity: "high",
-    reason: "terraform force-unlock removes state lock. Only use if lock is stale.",
+    reason:
+      "terraform force-unlock removes state lock. Only use if lock is stale.",
     explanation:
       "terraform force-unlock removes state locks:\n\n" +
       "- Forces removal of a state lock\n" +
@@ -147,7 +181,8 @@ const terraformDestructive: DestructiveRule[] = [
     name: "terraform-workspace-delete",
     re: /terraform\b.*?\bworkspace\s+delete\b/,
     severity: "medium",
-    reason: "terraform workspace delete removes a workspace. Ensure it's not in use.",
+    reason:
+      "terraform workspace delete removes a workspace. Ensure it's not in use.",
     explanation:
       "terraform workspace delete removes workspace:\n\n" +
       "- Workspace and its state file deleted\n" +
@@ -163,10 +198,22 @@ const terraformDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const ansibleSafe: SafeRule[] = [
-  { name: "ansible-check", re: /ansible(?:-playbook)?\b[^\n;&|]*--check(?:\s|$)[^\n;&|]*$/ },
-  { name: "ansible-list-hosts", re: /ansible(?:-playbook)?\b[^\n;&|]*--list-hosts(?:\s|$)[^\n;&|]*$/ },
-  { name: "ansible-list-tasks", re: /ansible(?:-playbook)?\b[^\n;&|]*--list-tasks(?:\s|$)[^\n;&|]*$/ },
-  { name: "ansible-syntax", re: /ansible(?:-playbook)?\b[^\n;&|]*--syntax-check(?:\s|$)[^\n;&|]*$/ },
+  {
+    name: "ansible-check",
+    re: /ansible(?:-playbook)?\b[^\n;&|]*--check(?:\s|$)[^\n;&|]*$/,
+  },
+  {
+    name: "ansible-list-hosts",
+    re: /ansible(?:-playbook)?\b[^\n;&|]*--list-hosts(?:\s|$)[^\n;&|]*$/,
+  },
+  {
+    name: "ansible-list-tasks",
+    re: /ansible(?:-playbook)?\b[^\n;&|]*--list-tasks(?:\s|$)[^\n;&|]*$/,
+  },
+  {
+    name: "ansible-syntax",
+    re: /ansible(?:-playbook)?\b[^\n;&|]*--syntax-check(?:\s|$)[^\n;&|]*$/,
+  },
   { name: "ansible-inventory", re: /ansible-inventory\b[^\n;&|]*$/ },
   { name: "ansible-doc", re: /ansible-doc\b[^\n;&|]*$/ },
   { name: "ansible-config", re: /ansible-config\b[^\n;&|]*$/ },
@@ -177,7 +224,8 @@ const ansibleDestructive: DestructiveRule[] = [
     name: "ansible-shell-rm-rf",
     re: /ansible\s+.*-m\s+(?:shell|command)\s+.*rm\s+-rf/,
     severity: "critical",
-    reason: "Ansible shell/command with 'rm -rf' is destructive. Review carefully.",
+    reason:
+      "Ansible shell/command with 'rm -rf' is destructive. Review carefully.",
     explanation:
       "Running 'rm -rf' via Ansible shell or command module executes destructive deletion " +
       "across all targeted hosts simultaneously. This multiplies the impact compared to " +
@@ -196,7 +244,8 @@ const ansibleDestructive: DestructiveRule[] = [
     name: "ansible-shell-reboot",
     re: /ansible\s+.*-m\s+(?:shell|command)\s+.*(?:reboot|shutdown|poweroff)/,
     severity: "high",
-    reason: "Ansible shell/command with reboot/shutdown affects system availability.",
+    reason:
+      "Ansible shell/command with reboot/shutdown affects system availability.",
     explanation:
       "Rebooting or shutting down systems via Ansible affects all targeted hosts at once. " +
       "This can cause service outages across your infrastructure:\n\n" +
@@ -254,15 +303,42 @@ const ansibleDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const pulumiSafe: SafeRule[] = [
-  { name: "pulumi-preview", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+preview(?=\s|$)/ },
-  { name: "pulumi-stack-ls", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+ls(?=\s|$)/ },
-  { name: "pulumi-stack-select", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+select(?=\s|$)/ },
-  { name: "pulumi-stack-init", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+init(?=\s|$)/ },
-  { name: "pulumi-config", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)/ },
-  { name: "pulumi-whoami", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)/ },
-  { name: "pulumi-version", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)/ },
-  { name: "pulumi-about", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+about(?=\s|$)/ },
-  { name: "pulumi-logs", re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)/ },
+  {
+    name: "pulumi-preview",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+preview(?=\s|$)/,
+  },
+  {
+    name: "pulumi-stack-ls",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+ls(?=\s|$)/,
+  },
+  {
+    name: "pulumi-stack-select",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+select(?=\s|$)/,
+  },
+  {
+    name: "pulumi-stack-init",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+init(?=\s|$)/,
+  },
+  {
+    name: "pulumi-config",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)/,
+  },
+  {
+    name: "pulumi-whoami",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)/,
+  },
+  {
+    name: "pulumi-version",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)/,
+  },
+  {
+    name: "pulumi-about",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+about(?=\s|$)/,
+  },
+  {
+    name: "pulumi-logs",
+    re: /pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)/,
+  },
 ];
 
 const pulumiDestructive: DestructiveRule[] = [
@@ -297,7 +373,8 @@ const pulumiDestructive: DestructiveRule[] = [
     name: "pulumi-state-delete",
     re: /pulumi\b.*?\bstate\s+delete/,
     severity: "high",
-    reason: "pulumi state delete removes resource from state without destroying it.",
+    reason:
+      "pulumi state delete removes resource from state without destroying it.",
     explanation:
       "pulumi state delete orphans resources:\n\n" +
       "- Resource removed from Pulumi state\n" +
@@ -310,7 +387,8 @@ const pulumiDestructive: DestructiveRule[] = [
     name: "pulumi-stack-rm",
     re: /pulumi\b.*?\bstack\s+rm/,
     severity: "high",
-    reason: "pulumi stack rm removes the stack. Use --force only if stack is empty.",
+    reason:
+      "pulumi stack rm removes the stack. Use --force only if stack is empty.",
     explanation:
       "pulumi stack rm removes the entire stack:\n\n" +
       "- Stack and its state deleted\n" +
@@ -323,7 +401,8 @@ const pulumiDestructive: DestructiveRule[] = [
     name: "pulumi-refresh-yes",
     re: /pulumi\b.*?\brefresh\s+.*(?:-y\b|--yes\b)/,
     severity: "medium",
-    reason: "pulumi refresh -y auto-approves state changes. Review changes first.",
+    reason:
+      "pulumi refresh -y auto-approves state changes. Review changes first.",
     explanation:
       "pulumi refresh -y auto-approves state sync:\n\n" +
       "- Syncs Pulumi state with actual cloud resources\n" +
@@ -362,7 +441,19 @@ export const infrastructurePack: Pack = {
   description:
     "Protects against destructive Infrastructure-as-Code operations across " +
     "Terraform, Ansible, and Pulumi",
-  keywords: ["terraform", "destroy", "taint", "state", "ansible", "playbook", "pulumi"],
+  keywords: [
+    "terraform",
+    "destroy",
+    "taint",
+    "state",
+    "ansible",
+    "playbook",
+    "pulumi",
+  ],
   safePatterns: [...terraformSafe, ...ansibleSafe, ...pulumiSafe],
-  destructivePatterns: [...terraformDestructive, ...ansibleDestructive, ...pulumiDestructive],
+  destructivePatterns: [
+    ...terraformDestructive,
+    ...ansibleDestructive,
+    ...pulumiDestructive,
+  ],
 };

@@ -90,7 +90,10 @@ const destructivePatterns: DestructiveRule[] = [
       "in progress (`.git/rebase-merge/` or `.git/rebase-apply/` present) auto-allows " +
       "the same rule without a permit.",
     suggestions: [
-      s("git stash", "Save changes temporarily, restore later with 'git stash pop'"),
+      s(
+        "git stash",
+        "Save changes temporarily, restore later with 'git stash pop'",
+      ),
       s("git diff -- {path}", "Review what would be lost before discarding"),
     ],
   },
@@ -109,9 +112,15 @@ const destructivePatterns: DestructiveRule[] = [
       "- git show <ref>:<path>: View the file content without overwriting\n\n" +
       "Preview what would change:\n  git diff HEAD <ref> -- <path>",
     suggestions: [
-      s("git stash", "Save changes first, then checkout, then restore with 'git stash pop'"),
+      s(
+        "git stash",
+        "Save changes first, then checkout, then restore with 'git stash pop'",
+      ),
       s("git show {ref}:{path}", "View the file content without overwriting"),
-      s("git diff HEAD {ref} -- {path}", "Preview what would change before overwriting"),
+      s(
+        "git diff HEAD {ref} -- {path}",
+        "Preview what would change before overwriting",
+      ),
     ],
   },
   // checkout -f / --force overwrites the working tree, discarding uncommitted
@@ -129,8 +138,14 @@ const destructivePatterns: DestructiveRule[] = [
       "- git stash: save changes first, switch, then 'git stash pop'\n" +
       "- git status && git diff: review what would be lost first",
     suggestions: [
-      s("git stash", "Save changes first, then checkout, then restore with 'git stash pop'"),
-      s("git status && git diff", "Review what would be lost before forcing checkout"),
+      s(
+        "git stash",
+        "Save changes first, then checkout, then restore with 'git stash pop'",
+      ),
+      s(
+        "git status && git diff",
+        "Review what would be lost before forcing checkout",
+      ),
     ],
   },
   // restore without --staged affects the working tree. The added
@@ -158,8 +173,14 @@ const destructivePatterns: DestructiveRule[] = [
       "in progress (`.git/rebase-merge/` or `.git/rebase-apply/` present) auto-allows " +
       "the same rule without a permit.",
     suggestions: [
-      s("git restore --staged {path}", "Only unstage, keeps working directory changes intact"),
-      s("git stash", "Save all changes temporarily, restore later with 'git stash pop'"),
+      s(
+        "git restore --staged {path}",
+        "Only unstage, keeps working directory changes intact",
+      ),
+      s(
+        "git stash",
+        "Save all changes temporarily, restore later with 'git stash pop'",
+      ),
       s("git diff {path}", "Review what would be lost before discarding"),
     ],
   },
@@ -167,7 +188,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "restore-worktree-explicit",
     re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+[^&;|`()<>]*(?:--worktree|-W\b)/,
     severity: "high",
-    reason: "git restore --worktree/-W discards uncommitted changes permanently.",
+    reason:
+      "git restore --worktree/-W discards uncommitted changes permanently.",
     explanation:
       "git restore --worktree (or -W) explicitly targets your working directory, " +
       "discarding uncommitted changes. Even when combined with --staged, the worktree " +
@@ -177,7 +199,10 @@ const destructivePatterns: DestructiveRule[] = [
       "- git stash: Save changes first\n\n" +
       "Preview changes first:\n  git diff <path>",
     suggestions: [
-      s("git restore --staged {path}", "Only unstage, keeps working directory changes intact"),
+      s(
+        "git restore --staged {path}",
+        "Only unstage, keeps working directory changes intact",
+      ),
       s("git stash", "Save all changes temporarily before discarding"),
       s("git diff {path}", "Review what would be lost before discarding"),
     ],
@@ -190,7 +215,8 @@ const destructivePatterns: DestructiveRule[] = [
     // DIVERGES from DCG's first-token-only form to close a reviewed FN.
     re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*reset\s+(?:[^\s&;|`()<>]+\s+)*--hard/,
     severity: "critical",
-    reason: "git reset --hard destroys uncommitted changes. Use 'git stash' first.",
+    reason:
+      "git reset --hard destroys uncommitted changes. Use 'git stash' first.",
     explanation:
       "git reset --hard discards ALL uncommitted changes in your working directory " +
       "AND staging area. This is one of the most dangerous git commands because " +
@@ -207,8 +233,14 @@ const destructivePatterns: DestructiveRule[] = [
     suggestions: [
       s("git stash", "Save all uncommitted changes before reset"),
       s("git reset --soft HEAD~1", "Undo commit but keep all changes staged"),
-      s("git reset --mixed HEAD~1", "Undo commit, unstage changes, but keep working directory"),
-      s("git checkout -- {file}", "Reset a specific file only, preserving other changes"),
+      s(
+        "git reset --mixed HEAD~1",
+        "Undo commit, unstage changes, but keep working directory",
+      ),
+      s(
+        "git checkout -- {file}",
+        "Reset a specific file only, preserving other changes",
+      ),
     ],
   },
   {
@@ -227,7 +259,10 @@ const destructivePatterns: DestructiveRule[] = [
       "Preview what would change:\n  git status && git diff",
     suggestions: [
       s("git stash", "Save uncommitted changes before reset"),
-      s("git merge --abort", "Abort the current merge safely without losing changes"),
+      s(
+        "git merge --abort",
+        "Abort the current merge safely without losing changes",
+      ),
       s("git status && git diff", "Preview what would change before resetting"),
     ],
   },
@@ -258,7 +293,10 @@ const destructivePatterns: DestructiveRule[] = [
       s("git clean -n", "Dry run first (shows what would be deleted)"),
       s("git clean -nd", "Dry run including directories"),
       s("git clean -i", "Interactive mode, choose what to delete"),
-      s("git stash --include-untracked", "Stash instead of delete (recoverable)"),
+      s(
+        "git stash --include-untracked",
+        "Stash instead of delete (recoverable)",
+      ),
     ],
   },
   // force push can destroy remote history (CRITICAL - affects shared history).
@@ -268,7 +306,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "push-force-long",
     re: /(?:^|[^A-Za-z0-9_-])git\s+(?:[^\s&;|`()<>]+\s+)*push\s+(?:[^\s&;|`()<>]+\s+)*--force(?![-a-z])/,
     severity: "critical",
-    reason: "Force push can destroy remote history. Use --force-with-lease if necessary.",
+    reason:
+      "Force push can destroy remote history. Use --force-with-lease if necessary.",
     explanation:
       "git push --force overwrites remote history with your local history. This can " +
       "permanently destroy commits that others have already pulled, causing data loss " +
@@ -282,7 +321,10 @@ const destructivePatterns: DestructiveRule[] = [
       "- git push --force-with-lease: Only forces if remote matches your last fetch\n\n" +
       "Check remote state first:\n  git fetch && git log origin/<branch>..HEAD",
     suggestions: [
-      s("git push --force-with-lease", "Fails if remote has new commits you haven't fetched"),
+      s(
+        "git push --force-with-lease",
+        "Fails if remote has new commits you haven't fetched",
+      ),
       s(
         "git push --force-with-lease --force-if-includes",
         "Even safer: also checks that your local ref includes the remote ref",
@@ -312,7 +354,10 @@ const destructivePatterns: DestructiveRule[] = [
       "- git push --force-with-lease: Only forces if remote matches your last fetch\n\n" +
       "Check remote state first:\n  git fetch && git log origin/<branch>..HEAD",
     suggestions: [
-      s("git push --force-with-lease", "Fails if remote has new commits you haven't fetched"),
+      s(
+        "git push --force-with-lease",
+        "Fails if remote has new commits you haven't fetched",
+      ),
       s(
         "git push --force-with-lease --force-if-includes",
         "Even safer: also checks that your local ref includes the remote ref",
@@ -343,9 +388,18 @@ const destructivePatterns: DestructiveRule[] = [
       "  git reflog  # Find the commit hash\n" +
       "  git checkout -b <branch> <commit-hash>",
     suggestions: [
-      s("git branch -d {branch}", "Safe delete: only works if branch is fully merged"),
-      s("git branch -v {branch}", "Show branch info (last commit) before deleting"),
-      s("git log {branch} --oneline -10", "Review branch commits before deleting"),
+      s(
+        "git branch -d {branch}",
+        "Safe delete: only works if branch is fully merged",
+      ),
+      s(
+        "git branch -v {branch}",
+        "Show branch info (last commit) before deleting",
+      ),
+      s(
+        "git log {branch} --oneline -10",
+        "Review branch commits before deleting",
+      ),
     ],
   },
   // stash destruction (Medium: single stash, recoverable via fsck/unreachable objects).
@@ -367,7 +421,10 @@ const destructivePatterns: DestructiveRule[] = [
       "  git fsck --unreachable | grep commit\n" +
       "  git show <commit-hash>  # Inspect each to find your stash",
     suggestions: [
-      s("git stash pop", "Apply and drop atomically (only drops if apply succeeds)"),
+      s(
+        "git stash pop",
+        "Apply and drop atomically (only drops if apply succeeds)",
+      ),
       s("git stash apply", "Apply without dropping, verify changes first"),
       s("git stash show stash@{0}", "Preview stash contents before dropping"),
       s("git stash list", "Review all stashes before dropping any"),
@@ -395,7 +452,10 @@ const destructivePatterns: DestructiveRule[] = [
     suggestions: [
       s("git stash drop stash@{n}", "Remove one specific stash at a time"),
       s("git stash list", "Review all stashes before clearing"),
-      s("git stash show stash@{n}", "Inspect each stash before deciding to delete"),
+      s(
+        "git stash show stash@{n}",
+        "Inspect each stash before deciding to delete",
+      ),
     ],
   },
 ];

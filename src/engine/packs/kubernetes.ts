@@ -37,25 +37,52 @@ function s(command: string, description: string): Suggestion {
 // ============================================================================
 
 const DELETE_NAMESPACE_SUGGESTIONS: Suggestion[] = [
-  s("kubectl delete ns {ns} --dry-run=client -o yaml", "Preview what would be deleted without making changes"),
-  s("kubectl get all -n {ns}", "See all resources in the namespace before deleting"),
-  s("kubectl delete ns {ns} --grace-period=60", "Allow graceful shutdown with 60-second grace period"),
+  s(
+    "kubectl delete ns {ns} --dry-run=client -o yaml",
+    "Preview what would be deleted without making changes",
+  ),
+  s(
+    "kubectl get all -n {ns}",
+    "See all resources in the namespace before deleting",
+  ),
+  s(
+    "kubectl delete ns {ns} --grace-period=60",
+    "Allow graceful shutdown with 60-second grace period",
+  ),
 ];
 
 const DELETE_ALL_SUGGESTIONS: Suggestion[] = [
-  s("kubectl delete {resource} --all --dry-run=client", "Preview what would be deleted without making changes"),
-  s("kubectl rollout restart deployment/{name}", "Restart pods via deployment for graceful recreation"),
-  s("kubectl delete {resource} {specific-name}", "Delete a specific resource instead of all"),
-  s("kubectl delete {resource} -l app={label}", "Use label selectors for targeted deletion"),
+  s(
+    "kubectl delete {resource} --all --dry-run=client",
+    "Preview what would be deleted without making changes",
+  ),
+  s(
+    "kubectl rollout restart deployment/{name}",
+    "Restart pods via deployment for graceful recreation",
+  ),
+  s(
+    "kubectl delete {resource} {specific-name}",
+    "Delete a specific resource instead of all",
+  ),
+  s(
+    "kubectl delete {resource} -l app={label}",
+    "Use label selectors for targeted deletion",
+  ),
 ];
 
 const DELETE_PVC_SUGGESTIONS: Suggestion[] = [
-  s("kubectl describe pvc {name}", "Check PVC status and usage before deleting"),
+  s(
+    "kubectl describe pvc {name}",
+    "Check PVC status and usage before deleting",
+  ),
   s(
     "kubectl get pods -o json | jq '.items[] | select(.spec.volumes[]?.persistentVolumeClaim.claimName==\"{name}\")'",
     "Find pods currently using this PVC",
   ),
-  s("kubectl delete pvc {name} --dry-run=client", "Preview deletion without making changes"),
+  s(
+    "kubectl delete pvc {name} --dry-run=client",
+    "Preview deletion without making changes",
+  ),
   s(
     "kubectl get pv $(kubectl get pvc {name} -o jsonpath='{.spec.volumeName}') -o jsonpath='{.spec.persistentVolumeReclaimPolicy}'",
     "Check reclaim policy to understand data fate",
@@ -63,21 +90,39 @@ const DELETE_PVC_SUGGESTIONS: Suggestion[] = [
 ];
 
 const DELETE_FORCE_SUGGESTIONS: Suggestion[] = [
-  s("kubectl delete {resource} {name}", "Use default 30-second grace period for graceful shutdown"),
-  s("kubectl delete {resource} {name} --grace-period=60", "Extended grace period for slower shutdown"),
-  s("kubectl describe {resource} {name}", "Check resource status to understand why it's stuck"),
+  s(
+    "kubectl delete {resource} {name}",
+    "Use default 30-second grace period for graceful shutdown",
+  ),
+  s(
+    "kubectl delete {resource} {name} --grace-period=60",
+    "Extended grace period for slower shutdown",
+  ),
+  s(
+    "kubectl describe {resource} {name}",
+    "Check resource status to understand why it's stuck",
+  ),
 ];
 
 const APPLY_FORCE_SUGGESTIONS: Suggestion[] = [
   s("kubectl apply -f {file}", "Apply without --force for in-place updates"),
   s("kubectl diff -f {file}", "Preview what changes would be applied"),
-  s("kubectl apply --server-side -f {file}", "Use server-side apply for safer field management"),
+  s(
+    "kubectl apply --server-side -f {file}",
+    "Use server-side apply for safer field management",
+  ),
 ];
 
 const DELETE_FROM_DIR_SUGGESTIONS: Suggestion[] = [
-  s("kubectl delete -f {specific-file}", "Delete from a specific file instead of directory"),
+  s(
+    "kubectl delete -f {specific-file}",
+    "Delete from a specific file instead of directory",
+  ),
   s("kubectl diff -f {directory}", "Preview what resources would be affected"),
-  s("kubectl delete -f {directory} --dry-run=client", "Preview deletion without making changes"),
+  s(
+    "kubectl delete -f {directory} --dry-run=client",
+    "Preview deletion without making changes",
+  ),
 ];
 
 // ============================================================================
@@ -336,35 +381,92 @@ const KUBECTL_DELETE_K_EXPLANATION =
 
 const safePatterns: SafeRule[] = [
   // ===== kubernetes.kubectl safe patterns =====
-  { name: "kubectl-get", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+get(?=\s|$)/ },
-  { name: "kubectl-describe", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+describe(?=\s|$)/ },
-  { name: "kubectl-logs", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)/ },
-  { name: "kubectl-dry-run", re: /kubectl\b.*--dry-run(?:=(?:client|server))?(?:\s|$)/ },
-  { name: "kubectl-diff", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)/ },
-  { name: "kubectl-explain", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+explain(?=\s|$)/ },
-  { name: "kubectl-top", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+top(?=\s|$)/ },
-  { name: "kubectl-config", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)/ },
-  { name: "kubectl-api", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+api-(?:resources|versions)(?=\s|$)/ },
-  { name: "kubectl-version", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)/ },
+  {
+    name: "kubectl-get",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+get(?=\s|$)/,
+  },
+  {
+    name: "kubectl-describe",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+describe(?=\s|$)/,
+  },
+  {
+    name: "kubectl-logs",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)/,
+  },
+  {
+    name: "kubectl-dry-run",
+    re: /kubectl\b.*--dry-run(?:=(?:client|server))?(?:\s|$)/,
+  },
+  {
+    name: "kubectl-diff",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)/,
+  },
+  {
+    name: "kubectl-explain",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+explain(?=\s|$)/,
+  },
+  {
+    name: "kubectl-top",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+top(?=\s|$)/,
+  },
+  {
+    name: "kubectl-config",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)/,
+  },
+  {
+    name: "kubectl-api",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+api-(?:resources|versions)(?=\s|$)/,
+  },
+  {
+    name: "kubectl-version",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)/,
+  },
 
   // ===== kubernetes.helm safe patterns =====
   { name: "helm-list", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+list(?=\s|$)/ },
-  { name: "helm-status", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)/ },
-  { name: "helm-history", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+history(?=\s|$)/ },
+  {
+    name: "helm-status",
+    re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)/,
+  },
+  {
+    name: "helm-history",
+    re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+history(?=\s|$)/,
+  },
   { name: "helm-show", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/ },
-  { name: "helm-inspect", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)/ },
+  {
+    name: "helm-inspect",
+    re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)/,
+  },
   { name: "helm-get", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+get(?=\s|$)/ },
-  { name: "helm-search", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+search(?=\s|$)/ },
+  {
+    name: "helm-search",
+    re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+search(?=\s|$)/,
+  },
   { name: "helm-repo", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+repo(?=\s|$)/ },
-  { name: "helm-dry-run", re: /helm\b.*--dry-run(?:=(?:true|client|server))?(?:\s|$)/ },
-  { name: "helm-template", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+template(?=\s|$)/ },
+  {
+    name: "helm-dry-run",
+    re: /helm\b.*--dry-run(?:=(?:true|client|server))?(?:\s|$)/,
+  },
+  {
+    name: "helm-template",
+    re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+template(?=\s|$)/,
+  },
   { name: "helm-lint", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+lint(?=\s|$)/ },
   { name: "helm-diff", re: /helm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)/ },
 
   // ===== kubernetes.kustomize safe patterns =====
-  { name: "kustomize-build", re: /kustomize\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build\b(?!.*\|)/ },
-  { name: "kubectl-kustomize", re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+kustomize\b(?!.*\|)/ },
-  { name: "kustomize-diff", re: /kustomize\b.*?\bbuild\s+.*\|\s*kubectl\b.*?\s+diff\b/ },
+  {
+    name: "kustomize-build",
+    re: /kustomize\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build\b(?!.*\|)/,
+  },
+  {
+    name: "kubectl-kustomize",
+    re: /kubectl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+kustomize\b(?!.*\|)/,
+  },
+  {
+    name: "kustomize-diff",
+    re: /kustomize\b.*?\bbuild\s+.*\|\s*kubectl\b.*?\s+diff\b/,
+  },
   {
     name: "kustomize-dry-run",
     re: /kustomize\b.*?\bbuild\s+.*\|\s*kubectl\b.*--dry-run(?:=(?:client|server))?(?:\s|$)/,
@@ -391,7 +493,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "delete-all",
     re: /kubectl\b.*?\bdelete\s+.*--all\b/,
     severity: "high",
-    reason: "kubectl delete --all removes ALL resources of that type. Use --dry-run=client first.",
+    reason:
+      "kubectl delete --all removes ALL resources of that type. Use --dry-run=client first.",
     explanation: DELETE_ALL_EXPLANATION,
     suggestions: DELETE_ALL_SUGGESTIONS,
   },
@@ -407,21 +510,24 @@ const destructivePatterns: DestructiveRule[] = [
     name: "drain-node",
     re: /kubectl\b.*?\bdrain\b/,
     severity: "high",
-    reason: "kubectl drain evicts all pods from a node. Ensure proper pod disruption budgets.",
+    reason:
+      "kubectl drain evicts all pods from a node. Ensure proper pod disruption budgets.",
     explanation: DRAIN_NODE_EXPLANATION,
   },
   {
     name: "cordon-node",
     re: /kubectl\b.*?\bcordon\b/,
     severity: "medium",
-    reason: "kubectl cordon marks a node unschedulable. Existing pods continue running.",
+    reason:
+      "kubectl cordon marks a node unschedulable. Existing pods continue running.",
     explanation: CORDON_NODE_EXPLANATION,
   },
   {
     name: "taint-noexecute",
     re: /kubectl\b.*?\btaint\s+.*:NoExecute/,
     severity: "high",
-    reason: "kubectl taint with NoExecute evicts existing pods that don't tolerate the taint.",
+    reason:
+      "kubectl taint with NoExecute evicts existing pods that don't tolerate the taint.",
     explanation: TAINT_NOEXECUTE_EXPLANATION,
   },
   {
@@ -436,7 +542,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "delete-pvc",
     re: /kubectl\b.*?\bdelete\s+(?:pvc|persistentvolumeclaim)\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$))/,
     severity: "critical",
-    reason: "kubectl delete pvc may permanently delete data if ReclaimPolicy is Delete.",
+    reason:
+      "kubectl delete pvc may permanently delete data if ReclaimPolicy is Delete.",
     explanation: DELETE_PVC_EXPLANATION,
     suggestions: DELETE_PVC_SUGGESTIONS,
   },
@@ -467,7 +574,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "apply-force",
     re: /kubectl\b.*?\bapply\s+.*--force\b/,
     severity: "high",
-    reason: "kubectl apply --force deletes and recreates resources, causing downtime.",
+    reason:
+      "kubectl apply --force deletes and recreates resources, causing downtime.",
     explanation: APPLY_FORCE_EXPLANATION,
     suggestions: APPLY_FORCE_SUGGESTIONS,
   },
@@ -486,21 +594,24 @@ const destructivePatterns: DestructiveRule[] = [
     name: "uninstall",
     re: /helm\b.*?\b(?:uninstall|delete)\b(?!.*--dry-run(?:=(?:true|client|server))?(?:\s|$))/,
     severity: "critical",
-    reason: "helm uninstall removes the release and all its resources. Use --dry-run first.",
+    reason:
+      "helm uninstall removes the release and all its resources. Use --dry-run first.",
     explanation: HELM_UNINSTALL_EXPLANATION,
   },
   {
     name: "rollback",
     re: /helm\b.*?\brollback\b(?!.*--dry-run(?:=(?:true|client|server))?(?:\s|$))/,
     severity: "high",
-    reason: "helm rollback reverts to a previous release. Use --dry-run to preview changes.",
+    reason:
+      "helm rollback reverts to a previous release. Use --dry-run to preview changes.",
     explanation: HELM_ROLLBACK_EXPLANATION,
   },
   {
     name: "upgrade-force",
     re: /helm\b.*?\bupgrade\s+.*--force/,
     severity: "high",
-    reason: "helm upgrade --force deletes and recreates resources, causing downtime.",
+    reason:
+      "helm upgrade --force deletes and recreates resources, causing downtime.",
     explanation: HELM_UPGRADE_FORCE_EXPLANATION,
   },
   {
@@ -516,14 +627,16 @@ const destructivePatterns: DestructiveRule[] = [
     name: "kustomize-delete",
     re: /kustomize\b.*?\bbuild\s+.*\|\s*kubectl\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$)).*?\bdelete/,
     severity: "critical",
-    reason: "kustomize build | kubectl delete removes all resources in the kustomization.",
+    reason:
+      "kustomize build | kubectl delete removes all resources in the kustomization.",
     explanation: KUSTOMIZE_DELETE_EXPLANATION,
   },
   {
     name: "kubectl-kustomize-delete",
     re: /kubectl\b.*?\bkustomize\s+.*\|\s*kubectl\b(?!.*--dry-run(?:=(?:client|server))?(?:\s|$)).*?\bdelete/,
     severity: "critical",
-    reason: "kubectl kustomize | kubectl delete removes all resources in the kustomization.",
+    reason:
+      "kubectl kustomize | kubectl delete removes all resources in the kustomization.",
     explanation: KUBECTL_KUSTOMIZE_DELETE_EXPLANATION,
   },
   {

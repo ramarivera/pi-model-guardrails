@@ -13,12 +13,11 @@
 // cicd.github_actions on secret/variable-delete. Tested in isolation here, the
 // platform pack reports its own gh-* rule names.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
+import test from "node:test";
+import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { platformPack } from "../src/engine/packs/platform.ts";
 import { buildRegistry } from "../src/engine/registry.ts";
-import { evaluateCommand } from "../src/engine/evaluate.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([platformPack]);
@@ -32,7 +31,11 @@ function blocks(cmd: string, ruleName: string, severity?: Severity): void {
 
 function allows(cmd: string): void {
   const d = evaluateCommand(cmd, registry);
-  assert.equal(d.decision, "allow", `expected ${cmd} to be allowed, got ${d.ruleName}`);
+  assert.equal(
+    d.decision,
+    "allow",
+    `expected ${cmd} to be allowed, got ${d.ruleName}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -69,17 +72,45 @@ test("github: blocks each destructive pattern (severity high)", () => {
   blocks("gh variable remove VAR_NAME", "gh-variable-delete", "high");
   blocks("gh repo deploy-key delete 123", "gh-repo-deploy-key-delete", "high");
   blocks("gh run cancel 123456", "gh-run-cancel", "high");
-  blocks("gh api -X DELETE /repos/owner/repo/actions/secrets/SECRET", "gh-api-delete-actions-secret", "high");
-  blocks("gh api -X DELETE /repos/owner/repo/actions/variables/VAR", "gh-api-delete-actions-variable", "high");
-  blocks("gh api -X DELETE /repos/owner/repo/hooks/123", "gh-api-delete-hook", "high");
-  blocks("gh api -X DELETE /repos/owner/repo/keys/456", "gh-api-delete-deploy-key", "high");
-  blocks("gh api -X DELETE /repos/owner/repo/releases/1", "gh-api-delete-release", "high");
+  blocks(
+    "gh api -X DELETE /repos/owner/repo/actions/secrets/SECRET",
+    "gh-api-delete-actions-secret",
+    "high",
+  );
+  blocks(
+    "gh api -X DELETE /repos/owner/repo/actions/variables/VAR",
+    "gh-api-delete-actions-variable",
+    "high",
+  );
+  blocks(
+    "gh api -X DELETE /repos/owner/repo/hooks/123",
+    "gh-api-delete-hook",
+    "high",
+  );
+  blocks(
+    "gh api -X DELETE /repos/owner/repo/keys/456",
+    "gh-api-delete-deploy-key",
+    "high",
+  );
+  blocks(
+    "gh api -X DELETE /repos/owner/repo/releases/1",
+    "gh-api-delete-release",
+    "high",
+  );
   blocks("gh api -X DELETE /repos/owner/repo", "gh-api-delete-repo", "high");
 });
 
 test("github: compact -XDELETE and --method=DELETE forms", () => {
-  blocks("gh api -XDELETE /repos/owner/repo/actions/secrets/SECRET", "gh-api-delete-actions-secret", "high");
-  blocks("gh api --method=DELETE /repos/owner/repo", "gh-api-delete-repo", "high");
+  blocks(
+    "gh api -XDELETE /repos/owner/repo/actions/secrets/SECRET",
+    "gh-api-delete-actions-secret",
+    "high",
+  );
+  blocks(
+    "gh api --method=DELETE /repos/owner/repo",
+    "gh-api-delete-repo",
+    "high",
+  );
 });
 
 test("github: api GET safe pattern does not mask DELETE later in the command", () => {
@@ -116,34 +147,114 @@ test("railway: allows read-only CLI", () => {
 
 test("railway: blocks destructive CLI", () => {
   blocks("railway delete --yes", "railway-project-delete", "critical");
-  blocks("railway project remove --project prod --yes", "railway-project-subcommand-delete", "critical");
-  blocks("railway environment delete production --yes", "railway-environment-delete", "critical");
-  blocks("railway env rm production --yes", "railway-environment-delete", "critical");
-  blocks("railway service delete --service postgres --yes", "railway-service-delete", "critical");
-  blocks("railway service rm --service api --yes", "railway-service-delete", "critical");
-  blocks("railway functions delete --function prod-worker --yes", "railway-function-delete", "critical");
-  blocks("railway function rm --function api-handler --yes", "railway-function-delete", "critical");
-  blocks("railway fn remove --function cron-job --yes", "railway-function-delete", "critical");
-  blocks("railway volume delete --volume data --yes", "railway-volume-delete", "critical");
-  blocks("railway volume detach --volume prod-db --yes", "railway-volume-detach", "high");
-  blocks("railway variable delete DATABASE_URL", "railway-variable-delete", "high");
+  blocks(
+    "railway project remove --project prod --yes",
+    "railway-project-subcommand-delete",
+    "critical",
+  );
+  blocks(
+    "railway environment delete production --yes",
+    "railway-environment-delete",
+    "critical",
+  );
+  blocks(
+    "railway env rm production --yes",
+    "railway-environment-delete",
+    "critical",
+  );
+  blocks(
+    "railway service delete --service postgres --yes",
+    "railway-service-delete",
+    "critical",
+  );
+  blocks(
+    "railway service rm --service api --yes",
+    "railway-service-delete",
+    "critical",
+  );
+  blocks(
+    "railway functions delete --function prod-worker --yes",
+    "railway-function-delete",
+    "critical",
+  );
+  blocks(
+    "railway function rm --function api-handler --yes",
+    "railway-function-delete",
+    "critical",
+  );
+  blocks(
+    "railway fn remove --function cron-job --yes",
+    "railway-function-delete",
+    "critical",
+  );
+  blocks(
+    "railway volume delete --volume data --yes",
+    "railway-volume-delete",
+    "critical",
+  );
+  blocks(
+    "railway volume detach --volume prod-db --yes",
+    "railway-volume-detach",
+    "high",
+  );
+  blocks(
+    "railway variable delete DATABASE_URL",
+    "railway-variable-delete",
+    "high",
+  );
   blocks("railway vars rm DATABASE_URL", "railway-variable-delete", "high");
   blocks("railway down --yes", "railway-deployment-remove", "high");
 });
 
 test("railway: blocks database-connection variable set", () => {
-  blocks("railway variable set DATABASE_URL=postgres://prod", "railway-database-variable-set", "high");
-  blocks("railway variable set --service api DATABASE_PUBLIC_URL=postgres://prod", "railway-database-variable-set", "high");
-  blocks("railway variable set PGHOST=prod-postgres.railway.internal", "railway-database-variable-set", "high");
-  blocks("railway vars set REDIS_PUBLIC_URL=redis://prod", "railway-database-variable-set", "high");
-  blocks("railway var set MYSQLHOST=mysql.railway.internal", "railway-database-variable-set", "high");
-  blocks("railway variables set MONGO_URL=mongodb://example.invalid/app", "railway-database-variable-set", "high");
+  blocks(
+    "railway variable set DATABASE_URL=postgres://prod",
+    "railway-database-variable-set",
+    "high",
+  );
+  blocks(
+    "railway variable set --service api DATABASE_PUBLIC_URL=postgres://prod",
+    "railway-database-variable-set",
+    "high",
+  );
+  blocks(
+    "railway variable set PGHOST=prod-postgres.railway.internal",
+    "railway-database-variable-set",
+    "high",
+  );
+  blocks(
+    "railway vars set REDIS_PUBLIC_URL=redis://prod",
+    "railway-database-variable-set",
+    "high",
+  );
+  blocks(
+    "railway var set MYSQLHOST=mysql.railway.internal",
+    "railway-database-variable-set",
+    "high",
+  );
+  blocks(
+    "railway variables set MONGO_URL=mongodb://example.invalid/app",
+    "railway-database-variable-set",
+    "high",
+  );
 });
 
 test("railway: blocks legacy --set database-variable flags", () => {
-  blocks("railway variables --set DATABASE_URL=postgres://prod", "railway-database-variable-legacy-set", "high");
-  blocks("railway variables --set REDIS_PUBLIC_URL=redis://prod", "railway-database-variable-legacy-set", "high");
-  blocks("railway var --set-from-stdin DATABASE_URL", "railway-database-variable-legacy-set", "high");
+  blocks(
+    "railway variables --set DATABASE_URL=postgres://prod",
+    "railway-database-variable-legacy-set",
+    "high",
+  );
+  blocks(
+    "railway variables --set REDIS_PUBLIC_URL=redis://prod",
+    "railway-database-variable-legacy-set",
+    "high",
+  );
+  blocks(
+    "railway var --set-from-stdin DATABASE_URL",
+    "railway-database-variable-legacy-set",
+    "high",
+  );
 });
 
 test("railway: allows benign variable sets and doc mentions", () => {
@@ -218,7 +329,9 @@ test("railway: blocks Public API mutations", () => {
 });
 
 test("railway: allows safe API queries and doc mentions", () => {
-  allows(`curl https://backboard.railway.app/graphql/v2 -d '{"query":"query { project(id:\\"p\\") { id name } }"}'`);
+  allows(
+    `curl https://backboard.railway.app/graphql/v2 -d '{"query":"query { project(id:\\"p\\") { id name } }"}'`,
+  );
   allows("grep projectDelete schema.graphql");
 });
 
@@ -241,7 +354,11 @@ test("kamal: blocks critical teardown/data-loss commands", () => {
   blocks("kamal accessory remove db", "kamal-accessory-remove", "critical");
   blocks("kamal accessory remove all", "kamal-accessory-remove", "critical");
   blocks("kamal accessory remove db -y", "kamal-accessory-remove", "critical");
-  blocks("kamal -d production accessory remove db", "kamal-accessory-remove", "critical");
+  blocks(
+    "kamal -d production accessory remove db",
+    "kamal-accessory-remove",
+    "critical",
+  );
 });
 
 test("kamal: blocks high-severity outage commands", () => {
@@ -314,7 +431,10 @@ test("kamal: safe lookalikes do not trip destructive rules", () => {
 });
 
 test("kamal: safe segment does not mask later destructive", () => {
-  blocks("kamal app details && kamal accessory remove db", "kamal-accessory-remove");
+  blocks(
+    "kamal app details && kamal accessory remove db",
+    "kamal-accessory-remove",
+  );
   blocks("kamal config | kamal remove -y", "kamal-remove");
   blocks("kamal deploy ; kamal proxy reboot", "kamal-proxy-reboot");
 });
@@ -359,12 +479,36 @@ test("modal: allows read-only CLI", () => {
 });
 
 test("modal: blocks critical resource deletion", () => {
-  blocks("modal environment delete prod --yes", "modal-environment-delete", "critical");
-  blocks("modal environment rm staging -y", "modal-environment-delete", "critical");
-  blocks("modal volume delete model-weights --yes", "modal-volume-delete", "critical");
-  blocks("modal volume remove checkpoints -y", "modal-volume-delete", "critical");
-  blocks("modal secret delete openai-key --yes", "modal-secret-delete", "critical");
-  blocks("modal secret rm postgres-creds -y", "modal-secret-delete", "critical");
+  blocks(
+    "modal environment delete prod --yes",
+    "modal-environment-delete",
+    "critical",
+  );
+  blocks(
+    "modal environment rm staging -y",
+    "modal-environment-delete",
+    "critical",
+  );
+  blocks(
+    "modal volume delete model-weights --yes",
+    "modal-volume-delete",
+    "critical",
+  );
+  blocks(
+    "modal volume remove checkpoints -y",
+    "modal-volume-delete",
+    "critical",
+  );
+  blocks(
+    "modal secret delete openai-key --yes",
+    "modal-secret-delete",
+    "critical",
+  );
+  blocks(
+    "modal secret rm postgres-creds -y",
+    "modal-secret-delete",
+    "critical",
+  );
   blocks("modal dict delete state -y", "modal-dict-delete", "critical");
   blocks("modal queue delete jobs --yes", "modal-queue-delete", "critical");
 });
@@ -373,22 +517,41 @@ test("modal: blocks high-severity terminate/wipe", () => {
   blocks("modal app stop my-prod-app -y", "modal-app-stop", "high");
   blocks("modal app stop ap-abc123 --yes", "modal-app-stop", "high");
   blocks("modal container stop ta-deadbeef -y", "modal-container-stop", "high");
-  blocks("modal volume rm -r model-weights /old-checkpoints", "modal-volume-rm-recursive", "high");
-  blocks("modal volume rm --recursive my-vol /subdir", "modal-volume-rm-recursive", "high");
+  blocks(
+    "modal volume rm -r model-weights /old-checkpoints",
+    "modal-volume-rm-recursive",
+    "high",
+  );
+  blocks(
+    "modal volume rm --recursive my-vol /subdir",
+    "modal-volume-rm-recursive",
+    "high",
+  );
   blocks("modal dict clear state -y", "modal-dict-clear", "high");
   blocks("modal queue clear jobs --yes", "modal-queue-clear", "high");
 });
 
 test("modal: blocks medium single-file delete / force overwrite", () => {
   blocks("modal volume rm model-weights /old.bin", "modal-volume-rm", "medium");
-  blocks("modal secret create --force openai-key VALUE=new", "modal-secret-create-force", "medium");
-  blocks("modal secret create openai-key VALUE=new --force", "modal-secret-create-force", "medium");
+  blocks(
+    "modal secret create --force openai-key VALUE=new",
+    "modal-secret-create-force",
+    "medium",
+  );
+  blocks(
+    "modal secret create openai-key VALUE=new --force",
+    "modal-secret-create-force",
+    "medium",
+  );
 });
 
 test("modal: distinguishes create --force from create without force", () => {
   allows("modal secret create new-secret VALUE=abc");
   allows("modal secret create --from-dotenv .env new-secret");
-  blocks("modal secret create --force my-secret VALUE=new", "modal-secret-create-force");
+  blocks(
+    "modal secret create --force my-secret VALUE=new",
+    "modal-secret-create-force",
+  );
 });
 
 test("modal: distinguishes recursive volume rm from single-file", () => {
@@ -397,7 +560,10 @@ test("modal: distinguishes recursive volume rm from single-file", () => {
 });
 
 test("modal: safe segment does not mask later delete", () => {
-  blocks("modal volume list && modal volume delete model-weights --yes", "modal-volume-delete");
+  blocks(
+    "modal volume list && modal volume delete model-weights --yes",
+    "modal-volume-delete",
+  );
   blocks("modal app list | modal app stop my-app --yes", "modal-app-stop");
 });
 
@@ -411,19 +577,55 @@ test("gitlab: blocks destructive glab/gitlab-rails/gitlab-rake (severity high)",
   blocks("glab release delete v1.2.3", "glab-release-delete", "high");
   blocks("glab variable delete FOO", "glab-variable-delete", "high");
   blocks("glab api -X DELETE projects/123", "glab-api-delete-project", "high");
-  blocks("glab api -X DELETE /projects/123/releases/v1.2.3", "glab-api-delete-release", "high");
-  blocks("glab api -X DELETE /projects/123/variables/SECRET", "glab-api-delete-variable", "high");
-  blocks("glab api --method DELETE /projects/123/protected_branches/main", "glab-api-delete-protected-branch", "high");
-  blocks("glab api -X DELETE /projects/123/hooks/456", "glab-api-delete-hook", "high");
-  blocks('gitlab-rails runner "Project.destroy_all"', "gitlab-rails-runner-destructive", "high");
-  blocks("gitlab-rake gitlab:backup:restore", "gitlab-rake-destructive", "high");
+  blocks(
+    "glab api -X DELETE /projects/123/releases/v1.2.3",
+    "glab-api-delete-release",
+    "high",
+  );
+  blocks(
+    "glab api -X DELETE /projects/123/variables/SECRET",
+    "glab-api-delete-variable",
+    "high",
+  );
+  blocks(
+    "glab api --method DELETE /projects/123/protected_branches/main",
+    "glab-api-delete-protected-branch",
+    "high",
+  );
+  blocks(
+    "glab api -X DELETE /projects/123/hooks/456",
+    "glab-api-delete-hook",
+    "high",
+  );
+  blocks(
+    'gitlab-rails runner "Project.destroy_all"',
+    "gitlab-rails-runner-destructive",
+    "high",
+  );
+  blocks(
+    "gitlab-rake gitlab:backup:restore",
+    "gitlab-rake-destructive",
+    "high",
+  );
 });
 
 test("gitlab: blocks compact -XDELETE and --method=DELETE forms", () => {
   blocks("glab api -XDELETE projects/123", "glab-api-delete-project", "high");
-  blocks("glab api --method=DELETE projects/123", "glab-api-delete-project", "high");
-  blocks("glab api -XDELETE /projects/123/variables/SECRET", "glab-api-delete-variable", "high");
-  blocks("glab api -XDELETE /projects/123/hooks/456", "glab-api-delete-hook", "high");
+  blocks(
+    "glab api --method=DELETE projects/123",
+    "glab-api-delete-project",
+    "high",
+  );
+  blocks(
+    "glab api -XDELETE /projects/123/variables/SECRET",
+    "glab-api-delete-variable",
+    "high",
+  );
+  blocks(
+    "glab api -XDELETE /projects/123/hooks/456",
+    "glab-api-delete-hook",
+    "high",
+  );
 });
 
 test("gitlab: allows safe commands", () => {

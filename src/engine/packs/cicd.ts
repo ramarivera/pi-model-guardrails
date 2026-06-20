@@ -41,13 +41,34 @@ import type { DestructiveRule, Pack, SafeRule } from "../types.ts";
 // ============================================================================
 
 const githubActionsSafe: SafeRule[] = [
-  { name: "gh-actions-secret-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+secret\s+list\b/ },
-  { name: "gh-actions-variable-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+variable\s+list\b/ },
-  { name: "gh-actions-workflow-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+workflow\s+list\b/ },
-  { name: "gh-actions-workflow-view", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+workflow\s+view\b/ },
-  { name: "gh-actions-run-list", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+run\s+list\b/ },
-  { name: "gh-actions-run-view", re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+run\s+view\b/ },
-  { name: "gh-actions-api-explicit-get", re: /^(?!(?=.*(?:-X\s*|--method(?:=|\s+))DELETE\b))gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/ },
+  {
+    name: "gh-actions-secret-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+secret\s+list\b/,
+  },
+  {
+    name: "gh-actions-variable-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+variable\s+list\b/,
+  },
+  {
+    name: "gh-actions-workflow-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+workflow\s+list\b/,
+  },
+  {
+    name: "gh-actions-workflow-view",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+workflow\s+view\b/,
+  },
+  {
+    name: "gh-actions-run-list",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+run\s+list\b/,
+  },
+  {
+    name: "gh-actions-run-view",
+    re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+run\s+view\b/,
+  },
+  {
+    name: "gh-actions-api-explicit-get",
+    re: /^(?!(?=.*(?:-X\s*|--method(?:=|\s+))DELETE\b))gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/,
+  },
 ];
 
 const githubActionsDestructive: DestructiveRule[] = [
@@ -85,7 +106,8 @@ const githubActionsDestructive: DestructiveRule[] = [
     name: "gh-actions-workflow-disable",
     re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+workflow\s+disable\b/,
     severity: "low",
-    reason: "gh workflow disable disables workflows. This is reversible, but can disrupt CI.",
+    reason:
+      "gh workflow disable disables workflows. This is reversible, but can disrupt CI.",
     explanation:
       "Disabling a workflow prevents it from running on any triggers. This is reversible " +
       "with 'gh workflow enable', but can disrupt CI/CD pipelines, scheduled jobs, and " +
@@ -114,7 +136,8 @@ const githubActionsDestructive: DestructiveRule[] = [
     name: "gh-actions-api-delete-secrets",
     re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*\b\/?repos\/[^\s/]+\/[^\s/]+\/actions\/secrets\b/,
     severity: "high",
-    reason: "gh api DELETE against /actions/secrets deletes GitHub Actions secrets.",
+    reason:
+      "gh api DELETE against /actions/secrets deletes GitHub Actions secrets.",
     explanation:
       "Making DELETE requests to the GitHub Actions secrets API removes secrets from " +
       "the repository. This bypasses CLI confirmations and directly modifies repository " +
@@ -128,7 +151,8 @@ const githubActionsDestructive: DestructiveRule[] = [
     name: "gh-actions-api-delete-variables",
     re: /gh(?:\s+--?[A-Za-z][A-Za-z0-9-]*\b(?:\s+(?!(?:secret|variable|workflow|run|api)\b)\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))DELETE\b.*\b\/?repos\/[^\s/]+\/[^\s/]+\/actions\/variables\b/,
     severity: "medium",
-    reason: "gh api DELETE against /actions/variables deletes GitHub Actions variables.",
+    reason:
+      "gh api DELETE against /actions/variables deletes GitHub Actions variables.",
     explanation:
       "Making DELETE requests to the GitHub Actions variables API removes variables " +
       "from the repository. This bypasses CLI confirmations and directly modifies " +
@@ -145,13 +169,28 @@ const githubActionsDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const gitlabCiSafe: SafeRule[] = [
-  { name: "glab-variable-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+list\b/ },
+  {
+    name: "glab-variable-list",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+list\b/,
+  },
   { name: "glab-ci-list", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+ci\s+list\b/ },
   { name: "glab-ci-view", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+ci\s+view\b/ },
-  { name: "glab-ci-status", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+ci\s+status\b/ },
-  { name: "gitlab-runner-list", re: /gitlab-runner(?:\s+--?\S+(?:\s+\S+)?)*\s+list\b/ },
-  { name: "gitlab-runner-status", re: /gitlab-runner(?:\s+--?\S+(?:\s+\S+)?)*\s+status\b/ },
-  { name: "glab-api-explicit-get", re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/ },
+  {
+    name: "glab-ci-status",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+ci\s+status\b/,
+  },
+  {
+    name: "gitlab-runner-list",
+    re: /gitlab-runner(?:\s+--?\S+(?:\s+\S+)?)*\s+list\b/,
+  },
+  {
+    name: "gitlab-runner-status",
+    re: /gitlab-runner(?:\s+--?\S+(?:\s+\S+)?)*\s+status\b/,
+  },
+  {
+    name: "glab-api-explicit-get",
+    re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+api\b.*(?:-X\s*|--method(?:=|\s+))GET\b/,
+  },
 ];
 
 const gitlabCiDestructive: DestructiveRule[] = [
@@ -159,7 +198,8 @@ const gitlabCiDestructive: DestructiveRule[] = [
     name: "glab-variable-delete",
     re: /glab(?:\s+--?\S+(?:\s+\S+)?)*\s+variable\s+delete\b/,
     severity: "high",
-    reason: "glab variable delete removes CI variables and can break pipelines.",
+    reason:
+      "glab variable delete removes CI variables and can break pipelines.",
     explanation:
       "Deleting a GitLab CI/CD variable removes it from the project, group, or instance. " +
       "Pipelines that depend on this variable will fail with undefined variable errors. " +
@@ -220,15 +260,42 @@ const gitlabCiDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const jenkinsSafe: SafeRule[] = [
-  { name: "jenkins-cli-list-jobs", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+list-jobs\b/ },
-  { name: "jenkins-cli-get-job", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+get-job\b/ },
-  { name: "jenkins-cli-build", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+build\b/ },
-  { name: "jenkins-cli-who-am-i", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+who-am-i\b/ },
-  { name: "jenkins-cli-list-views", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+list-views\b/ },
-  { name: "jenkins-cli-list-plugins", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+list-plugins\b/ },
-  { name: "jenkins-cli-get-node", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+get-node\b/ },
-  { name: "jenkins-cli-get-credentials", re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+get-credentials\b/ },
-  { name: "jenkins-curl-explicit-get", re: /^(?!(?=.*(?:-X\s*|--request(?:=|\s+))POST\b)(?=.*\bdoDelete\b))curl(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-X\s*|--request(?:=|\s+))GET\b.*(?:jenkins|\/job\/|\/api\/)/i },
+  {
+    name: "jenkins-cli-list-jobs",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+list-jobs\b/,
+  },
+  {
+    name: "jenkins-cli-get-job",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+get-job\b/,
+  },
+  {
+    name: "jenkins-cli-build",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+build\b/,
+  },
+  {
+    name: "jenkins-cli-who-am-i",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+who-am-i\b/,
+  },
+  {
+    name: "jenkins-cli-list-views",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+list-views\b/,
+  },
+  {
+    name: "jenkins-cli-list-plugins",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+list-plugins\b/,
+  },
+  {
+    name: "jenkins-cli-get-node",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+get-node\b/,
+  },
+  {
+    name: "jenkins-cli-get-credentials",
+    re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+get-credentials\b/,
+  },
+  {
+    name: "jenkins-curl-explicit-get",
+    re: /^(?!(?=.*(?:-X\s*|--request(?:=|\s+))POST\b)(?=.*\bdoDelete\b))curl(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-X\s*|--request(?:=|\s+))GET\b.*(?:jenkins|\/job\/|\/api\/)/i,
+  },
 ];
 
 const jenkinsDestructive: DestructiveRule[] = [
@@ -236,7 +303,8 @@ const jenkinsDestructive: DestructiveRule[] = [
     name: "jenkins-cli-delete-job",
     re: /(?:jenkins-cli|java\s+-jar\s+\S*jenkins-cli\.jar)(?:\s+--?\S+(?:\s+\S+)?)*\s+delete-job\b/,
     severity: "critical",
-    reason: "jenkins-cli delete-job deletes Jenkins jobs and can break pipelines.",
+    reason:
+      "jenkins-cli delete-job deletes Jenkins jobs and can break pipelines.",
     explanation:
       "Deleting a Jenkins job removes the job configuration, build history, and all " +
       "associated artifacts. Downstream jobs that depend on this job will fail. The " +
@@ -306,7 +374,8 @@ const jenkinsDestructive: DestructiveRule[] = [
     name: "jenkins-curl-do-delete",
     re: /\bcurl\b(?=.*(?:-X\s*|--request(?:=|\s+))POST\b)(?=.*\bdoDelete\b).*/i,
     severity: "critical",
-    reason: "curl POST to Jenkins doDelete endpoints deletes jobs or resources.",
+    reason:
+      "curl POST to Jenkins doDelete endpoints deletes jobs or resources.",
     explanation:
       "POSTing to Jenkins doDelete endpoints triggers immediate deletion of jobs, builds, " +
       "or other resources. This bypasses CLI safety checks and directly calls the " +
@@ -323,16 +392,46 @@ const jenkinsDestructive: DestructiveRule[] = [
 // ============================================================================
 
 const circleciSafe: SafeRule[] = [
-  { name: "circleci-context-list", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+context\s+list\b/ },
-  { name: "circleci-orb-list", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+orb\s+list\b/ },
-  { name: "circleci-orb-info", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+orb\s+info\b/ },
-  { name: "circleci-pipeline-list", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+pipeline\s+list\b/ },
-  { name: "circleci-project-list", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+project\s+list\b/ },
-  { name: "circleci-namespace-list", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+list\b/ },
-  { name: "circleci-config-validate", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+config\s+validate\b/ },
-  { name: "circleci-local-execute", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+local\s+execute\b/ },
-  { name: "circleci-policy-status", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+policy\s+status\b/ },
-  { name: "circleci-diagnostic", re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+diagnostic\b/ },
+  {
+    name: "circleci-context-list",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+context\s+list\b/,
+  },
+  {
+    name: "circleci-orb-list",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+orb\s+list\b/,
+  },
+  {
+    name: "circleci-orb-info",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+orb\s+info\b/,
+  },
+  {
+    name: "circleci-pipeline-list",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+pipeline\s+list\b/,
+  },
+  {
+    name: "circleci-project-list",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+project\s+list\b/,
+  },
+  {
+    name: "circleci-namespace-list",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+list\b/,
+  },
+  {
+    name: "circleci-config-validate",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+config\s+validate\b/,
+  },
+  {
+    name: "circleci-local-execute",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+local\s+execute\b/,
+  },
+  {
+    name: "circleci-policy-status",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+policy\s+status\b/,
+  },
+  {
+    name: "circleci-diagnostic",
+    re: /circleci(?:\s+--?\S+(?:\s+\S+)?)*\s+diagnostic\b/,
+  },
 ];
 
 const circleciDestructive: DestructiveRule[] = [
@@ -410,7 +509,8 @@ const circleciDestructive: DestructiveRule[] = [
     name: "circleci-api-delete-envvar",
     re: /curl(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-X\s*|--request(?:=|\s+))DELETE\b.*circleci\.com\/api\/[^\s]*\b(?:envvar|environment-variable)\b/,
     severity: "high",
-    reason: "curl DELETE against CircleCI envvar endpoints removes environment variables.",
+    reason:
+      "curl DELETE against CircleCI envvar endpoints removes environment variables.",
     explanation:
       "Making DELETE requests to CircleCI environment variable endpoints removes variables " +
       "from projects. Pipelines depending on these variables will fail on next run. " +
@@ -439,8 +539,21 @@ export const cicdPack: Pack = {
   description:
     "Protects against destructive CI/CD pipeline operations across GitHub Actions " +
     "(gh), GitLab CI, Jenkins, and CircleCI",
-  keywords: ["gh", "glab", "gitlab-runner", "jenkins-cli", "jenkins", "doDelete", "circleci"],
-  safePatterns: [...githubActionsSafe, ...gitlabCiSafe, ...jenkinsSafe, ...circleciSafe],
+  keywords: [
+    "gh",
+    "glab",
+    "gitlab-runner",
+    "jenkins-cli",
+    "jenkins",
+    "doDelete",
+    "circleci",
+  ],
+  safePatterns: [
+    ...githubActionsSafe,
+    ...gitlabCiSafe,
+    ...jenkinsSafe,
+    ...circleciSafe,
+  ],
   destructivePatterns: [
     ...githubActionsDestructive,
     ...gitlabCiDestructive,

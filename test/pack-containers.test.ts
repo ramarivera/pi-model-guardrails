@@ -14,12 +14,11 @@
 //           rmi-force/volume-rm -> "podman-"-prefixed
 // These tests assert the merged (TS) rule names.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
-import { buildRegistry } from "../src/engine/registry.ts";
+import test from "node:test";
 import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { containersPack } from "../src/engine/packs/containers.ts";
+import { buildRegistry } from "../src/engine/registry.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([containersPack]);
@@ -45,10 +44,26 @@ function assertAllows(cmd: string) {
 // ---------------------------------------------------------------------------
 
 test("docker: global flags do not bypass (docker_patterns_match_with_global_flags)", () => {
-  assertBlocks("docker --context prod volume rm critical-vol", undefined, "volume-rm");
-  assertBlocks("docker --host ssh://prod-host system prune --all", undefined, "system-prune");
-  assertBlocks("docker --config /tmp/dc --context prod rm -f prod-db", undefined, "rm-force");
-  assertBlocks("docker --log-level debug --context prod image prune --all", undefined, "image-prune");
+  assertBlocks(
+    "docker --context prod volume rm critical-vol",
+    undefined,
+    "volume-rm",
+  );
+  assertBlocks(
+    "docker --host ssh://prod-host system prune --all",
+    undefined,
+    "system-prune",
+  );
+  assertBlocks(
+    "docker --config /tmp/dc --context prod rm -f prod-db",
+    undefined,
+    "rm-force",
+  );
+  assertBlocks(
+    "docker --log-level debug --context prod image prune --all",
+    undefined,
+    "image-prune",
+  );
 });
 
 test("docker: rm -f force forms block, plain rm allowed (test_rm_force)", () => {
@@ -64,7 +79,11 @@ test("docker: rm -f force forms block, plain rm allowed (test_rm_force)", () => 
 });
 
 test("docker: rmi -f force forms block, plain rmi allowed (test_rmi_force)", () => {
-  for (const cmd of ["docker rmi -f image", "docker rmi --force image", "docker rmi -nf image"]) {
+  for (const cmd of [
+    "docker rmi -f image",
+    "docker rmi --force image",
+    "docker rmi -nf image",
+  ]) {
     assertBlocks(cmd, "high", "rmi-force");
   }
   assertAllows("docker rmi image");
@@ -172,9 +191,21 @@ test("compose: safe patterns + down-without-volumes allowed", () => {
 // ---------------------------------------------------------------------------
 
 test("podman: global flags do not bypass (podman_patterns_match_with_global_flags)", () => {
-  assertBlocks("podman --remote --connection prod volume rm critical-vol", undefined, "podman-volume-rm");
-  assertBlocks("podman --url tcp://prod:8080 system prune --all", undefined, "podman-system-prune");
-  assertBlocks("podman --log-level debug --connection prod rm -f prod-db", undefined, "podman-rm-force");
+  assertBlocks(
+    "podman --remote --connection prod volume rm critical-vol",
+    undefined,
+    "podman-volume-rm",
+  );
+  assertBlocks(
+    "podman --url tcp://prod:8080 system prune --all",
+    undefined,
+    "podman-system-prune",
+  );
+  assertBlocks(
+    "podman --log-level debug --connection prod rm -f prod-db",
+    undefined,
+    "podman-rm-force",
+  );
 });
 
 test("podman: rm -f / rmi -f block, plain allowed", () => {
@@ -189,7 +220,11 @@ test("podman: rm -f / rmi -f block, plain allowed", () => {
   }
   assertAllows("podman rm container");
 
-  for (const cmd of ["podman rmi -f image", "podman rmi --force image", "podman rmi -nf image"]) {
+  for (const cmd of [
+    "podman rmi -f image",
+    "podman rmi --force image",
+    "podman rmi -nf image",
+  ]) {
     assertBlocks(cmd, "high", "podman-rmi-force");
   }
   assertAllows("podman rmi image");

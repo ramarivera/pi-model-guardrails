@@ -50,7 +50,11 @@ function assertBlocksWithSeverity(
 function assertBlocksWithPattern(cmd: string, name: string): EngineDecision {
   const d = check(cmd);
   assert.ok(d, `expected ${JSON.stringify(cmd)} to block, got allow`);
-  assert.equal(d.ruleName, name, `ruleName mismatch for ${JSON.stringify(cmd)}`);
+  assert.equal(
+    d.ruleName,
+    name,
+    `ruleName mismatch for ${JSON.stringify(cmd)}`,
+  );
   return d;
 }
 
@@ -86,7 +90,10 @@ test("pack metadata + force flag", () => {
   assert.equal(coreFilesystemPack.name, "Core Filesystem");
   assert.equal(coreFilesystemPack.force, true);
   for (const kw of ["rm", "find", "cp", "ln", "rsync"]) {
-    assert.ok(coreFilesystemPack.keywords.includes(kw), `missing keyword ${kw}`);
+    assert.ok(
+      coreFilesystemPack.keywords.includes(kw),
+      `missing keyword ${kw}`,
+    );
   }
   assert.ok(
     coreFilesystemPack.imperative && coreFilesystemPack.imperative.length > 0,
@@ -680,7 +687,10 @@ test("sensitive propagation then delete blocks (critical)", () => {
       "sudo cp -a /home/user/.ssh /var/tmp/keys && rm --recursive --force /var/tmp/keys",
       "cp-sensitive-then-delete",
     ],
-    ["ln -s /etc /tmp/x && rm -rf /tmp/x/.", "ln-symlink-sensitive-then-delete"],
+    [
+      "ln -s /etc /tmp/x && rm -rf /tmp/x/.",
+      "ln-symlink-sensitive-then-delete",
+    ],
     [
       "ln -sf $HOME /tmp/home && rm -rf /tmp/home/.",
       "ln-symlink-sensitive-then-delete",

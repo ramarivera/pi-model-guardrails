@@ -7,12 +7,11 @@
 // Exercises the real engine: buildRegistry([packageManagersPack]) +
 // evaluateCommand.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
-import { buildRegistry } from "../src/engine/registry.ts";
+import test from "node:test";
 import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { packageManagersPack } from "../src/engine/packs/package-managers.ts";
+import { buildRegistry } from "../src/engine/registry.ts";
 
 const registry = buildRegistry([packageManagersPack]);
 

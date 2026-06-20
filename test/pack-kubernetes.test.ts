@@ -11,12 +11,11 @@
 // All rule names are unique across the three sub-packs, so the merged TS names
 // equal the DCG names verbatim.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
-import { buildRegistry } from "../src/engine/registry.ts";
+import test from "node:test";
 import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { kubernetesPack } from "../src/engine/packs/kubernetes.ts";
+import { buildRegistry } from "../src/engine/registry.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([kubernetesPack]);
@@ -42,14 +41,42 @@ function assertAllows(cmd: string) {
 // ---------------------------------------------------------------------------
 
 test("kubectl: global flags do not bypass", () => {
-  assertBlocks("kubectl --context prod delete namespace critical", undefined, "delete-namespace");
-  assertBlocks("kubectl --kubeconfig /tmp/prod.yaml delete deployment --all", undefined, "delete-all");
+  assertBlocks(
+    "kubectl --context prod delete namespace critical",
+    undefined,
+    "delete-namespace",
+  );
+  assertBlocks(
+    "kubectl --kubeconfig /tmp/prod.yaml delete deployment --all",
+    undefined,
+    "delete-all",
+  );
   // delete-all fires before delete-all-namespaces (DCG first-match within pack).
-  assertBlocks("kubectl --context prod delete pods --all-namespaces -l app=legacy", undefined, "delete-all");
-  assertBlocks("kubectl --context prod drain node-1 --ignore-daemonsets", undefined, "drain-node");
-  assertBlocks("kubectl -n prod delete pod stuck-pod --force --grace-period=0", undefined, "delete-force");
-  assertBlocks("kubectl --context prod delete pvc prod-db-data", undefined, "delete-pvc");
-  assertBlocks("kubectl --context prod apply -f manifest.yaml --force", undefined, "apply-force");
+  assertBlocks(
+    "kubectl --context prod delete pods --all-namespaces -l app=legacy",
+    undefined,
+    "delete-all",
+  );
+  assertBlocks(
+    "kubectl --context prod drain node-1 --ignore-daemonsets",
+    undefined,
+    "drain-node",
+  );
+  assertBlocks(
+    "kubectl -n prod delete pod stuck-pod --force --grace-period=0",
+    undefined,
+    "delete-force",
+  );
+  assertBlocks(
+    "kubectl --context prod delete pvc prod-db-data",
+    undefined,
+    "delete-pvc",
+  );
+  assertBlocks(
+    "kubectl --context prod apply -f manifest.yaml --force",
+    undefined,
+    "apply-force",
+  );
 });
 
 test("kubectl: safe positional reads allowed after global flags", () => {
@@ -73,21 +100,53 @@ test("kubectl: safe subcommand inside resource name does not short-circuit", () 
 });
 
 test("kubectl: blocks each destructive pattern (kubectl_blocks_each_destructive_pattern)", () => {
-  assertBlocks("kubectl delete namespace production", undefined, "delete-namespace");
+  assertBlocks(
+    "kubectl delete namespace production",
+    undefined,
+    "delete-namespace",
+  );
   assertBlocks("kubectl delete ns staging", undefined, "delete-namespace");
   assertBlocks("kubectl delete pods --all", undefined, "delete-all");
   assertBlocks("kubectl delete pods -A", undefined, "delete-all-namespaces");
   assertBlocks("kubectl drain node-1", undefined, "drain-node");
   assertBlocks("kubectl cordon node-1", undefined, "cordon-node");
-  assertBlocks("kubectl taint nodes node-1 key=val:NoExecute", undefined, "taint-noexecute");
-  assertBlocks("kubectl delete deployment web-api", undefined, "delete-workload");
-  assertBlocks("kubectl delete statefulset db-cluster", undefined, "delete-workload");
+  assertBlocks(
+    "kubectl taint nodes node-1 key=val:NoExecute",
+    undefined,
+    "taint-noexecute",
+  );
+  assertBlocks(
+    "kubectl delete deployment web-api",
+    undefined,
+    "delete-workload",
+  );
+  assertBlocks(
+    "kubectl delete statefulset db-cluster",
+    undefined,
+    "delete-workload",
+  );
   assertBlocks("kubectl delete pvc data-volume", undefined, "delete-pvc");
   assertBlocks("kubectl delete pv my-volume", undefined, "delete-pv");
-  assertBlocks("kubectl scale deployment web --replicas=0", undefined, "scale-to-zero");
-  assertBlocks("kubectl delete pod foo --force --grace-period=0", undefined, "delete-force");
-  assertBlocks("kubectl apply -f deploy.yaml --force", undefined, "apply-force");
-  assertBlocks("kubectl delete -f ./manifests/", undefined, "delete-from-directory");
+  assertBlocks(
+    "kubectl scale deployment web --replicas=0",
+    undefined,
+    "scale-to-zero",
+  );
+  assertBlocks(
+    "kubectl delete pod foo --force --grace-period=0",
+    undefined,
+    "delete-force",
+  );
+  assertBlocks(
+    "kubectl apply -f deploy.yaml --force",
+    undefined,
+    "apply-force",
+  );
+  assertBlocks(
+    "kubectl delete -f ./manifests/",
+    undefined,
+    "delete-from-directory",
+  );
 });
 
 test("kubectl: blocks with correct severity (kubectl_blocks_with_correct_severity)", () => {
@@ -127,8 +186,16 @@ test("kubectl: --dry-run overrides destructive (kubectl_dry_run_overrides_destru
 });
 
 test("kubectl: --dry-run=none does NOT bypass (kubectl_dry_run_none_does_not_bypass)", () => {
-  assertBlocks("kubectl delete deployment web --dry-run=none", undefined, "delete-workload");
-  assertBlocks("kubectl delete pvc data --dry-run=none", undefined, "delete-pvc");
+  assertBlocks(
+    "kubectl delete deployment web --dry-run=none",
+    undefined,
+    "delete-workload",
+  );
+  assertBlocks(
+    "kubectl delete pvc data --dry-run=none",
+    undefined,
+    "delete-pvc",
+  );
   assertBlocks("kubectl delete pv data --dry-run=none", undefined, "delete-pv");
 });
 
@@ -142,18 +209,42 @@ test("kubectl: unrelated commands no match (kubectl_unrelated_commands_no_match)
 // ---------------------------------------------------------------------------
 
 test("helm: global flags do not bypass (helm_patterns_match_with_global_flags)", () => {
-  assertBlocks("helm --kube-context prod uninstall critical-release", undefined, "uninstall");
-  assertBlocks("helm --kubeconfig /tmp/prod.yaml delete prod-svc", undefined, "uninstall");
-  assertBlocks("helm -n prod rollback critical-release 2", undefined, "rollback");
-  assertBlocks("helm --kube-context prod upgrade prod-svc ./chart --force", undefined, "upgrade-force");
+  assertBlocks(
+    "helm --kube-context prod uninstall critical-release",
+    undefined,
+    "uninstall",
+  );
+  assertBlocks(
+    "helm --kubeconfig /tmp/prod.yaml delete prod-svc",
+    undefined,
+    "uninstall",
+  );
+  assertBlocks(
+    "helm -n prod rollback critical-release 2",
+    undefined,
+    "rollback",
+  );
+  assertBlocks(
+    "helm --kube-context prod upgrade prod-svc ./chart --force",
+    undefined,
+    "upgrade-force",
+  );
 });
 
 test("helm: blocks each destructive pattern + severity", () => {
   assertBlocks("helm uninstall my-release", "critical", "uninstall");
   assertBlocks("helm delete my-release", "critical", "uninstall");
   assertBlocks("helm rollback my-release 3", "high", "rollback");
-  assertBlocks("helm upgrade my-release ./chart --force", "high", "upgrade-force");
-  assertBlocks("helm upgrade my-release ./chart --reset-values", "high", "upgrade-reset-values");
+  assertBlocks(
+    "helm upgrade my-release ./chart --force",
+    "high",
+    "upgrade-force",
+  );
+  assertBlocks(
+    "helm upgrade my-release ./chart --reset-values",
+    "high",
+    "upgrade-reset-values",
+  );
 });
 
 test("helm: all safe patterns allow (helm_all_safe_patterns_match)", () => {
@@ -179,10 +270,26 @@ test("helm: --dry-run overrides; false/none do not bypass", () => {
   assertAllows("helm uninstall my-release --dry-run=true");
   assertAllows("helm rollback my-release 3 --dry-run");
 
-  assertBlocks("helm uninstall my-release --dry-run=false", undefined, "uninstall");
-  assertBlocks("helm delete my-release --dry-run=false", undefined, "uninstall");
-  assertBlocks("helm rollback my-release 3 --dry-run=false", undefined, "rollback");
-  assertBlocks("helm uninstall my-release --dry-run=none", undefined, "uninstall");
+  assertBlocks(
+    "helm uninstall my-release --dry-run=false",
+    undefined,
+    "uninstall",
+  );
+  assertBlocks(
+    "helm delete my-release --dry-run=false",
+    undefined,
+    "uninstall",
+  );
+  assertBlocks(
+    "helm rollback my-release 3 --dry-run=false",
+    undefined,
+    "rollback",
+  );
+  assertBlocks(
+    "helm uninstall my-release --dry-run=none",
+    undefined,
+    "uninstall",
+  );
 });
 
 test("helm: unrelated commands no match (helm_unrelated_commands_no_match)", () => {
@@ -195,12 +302,24 @@ test("helm: unrelated commands no match (helm_unrelated_commands_no_match)", () 
 // ---------------------------------------------------------------------------
 
 test("kustomize: piped delete blocks (kustomize_blocks_piped_delete)", () => {
-  assertBlocks("kustomize build ./overlays/prod | kubectl delete -f -", "critical", "kustomize-delete");
-  assertBlocks("kubectl kustomize ./overlays/prod | kubectl delete -f -", "critical", "kubectl-kustomize-delete");
+  assertBlocks(
+    "kustomize build ./overlays/prod | kubectl delete -f -",
+    "critical",
+    "kustomize-delete",
+  );
+  assertBlocks(
+    "kubectl kustomize ./overlays/prod | kubectl delete -f -",
+    "critical",
+    "kubectl-kustomize-delete",
+  );
 });
 
 test("kustomize: kubectl delete -k blocks (kustomize_blocks_kubectl_delete_k)", () => {
-  assertBlocks("kubectl delete -k ./overlays/prod", "critical", "kubectl-delete-k");
+  assertBlocks(
+    "kubectl delete -k ./overlays/prod",
+    "critical",
+    "kubectl-delete-k",
+  );
 });
 
 test("kustomize: build alone is safe (kustomize_safe_build_alone)", () => {
@@ -213,9 +332,15 @@ test("kustomize: diff is safe (kustomize_safe_with_diff)", () => {
 });
 
 test("kustomize: dry-run forms safe (kustomize_safe_with_dry_run)", () => {
-  assertAllows("kustomize build ./overlays/prod | kubectl apply --dry-run=client -f -");
-  assertAllows("kustomize build ./overlays/prod | kubectl delete --dry-run=client -f -");
-  assertAllows("kubectl kustomize ./overlays/prod | kubectl delete --dry-run=server -f -");
+  assertAllows(
+    "kustomize build ./overlays/prod | kubectl apply --dry-run=client -f -",
+  );
+  assertAllows(
+    "kustomize build ./overlays/prod | kubectl delete --dry-run=client -f -",
+  );
+  assertAllows(
+    "kubectl kustomize ./overlays/prod | kubectl delete --dry-run=server -f -",
+  );
   assertAllows("kubectl delete -k ./prod --dry-run=client");
 });
 
@@ -225,7 +350,11 @@ test("kustomize: --dry-run=none does NOT bypass delete (kustomize_dry_run_none_d
     "critical",
     "kustomize-delete",
   );
-  assertBlocks("kubectl delete -k ./prod --dry-run=none", "critical", "kubectl-delete-k");
+  assertBlocks(
+    "kubectl delete -k ./prod --dry-run=none",
+    "critical",
+    "kubectl-delete-k",
+  );
 });
 
 test("kustomize: unrelated commands no match (kustomize_unrelated_commands_no_match)", () => {

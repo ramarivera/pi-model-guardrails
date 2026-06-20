@@ -11,12 +11,11 @@
 // segmentation, the keyword quick-reject, and the per-pack safe/destructive
 // matcher are all on the hot path.
 
-import test from "node:test";
 import assert from "node:assert/strict";
-
-import { buildRegistry } from "../src/engine/registry.ts";
+import test from "node:test";
 import { evaluateCommand } from "../src/engine/evaluate.ts";
 import { systemPack } from "../src/engine/packs/system.ts";
+import { buildRegistry } from "../src/engine/registry.ts";
 import type { Severity } from "../src/engine/types.ts";
 
 const registry = buildRegistry([systemPack]);
@@ -53,8 +52,16 @@ test("disk: dd quote bypass is closed (dd_quote_bypass_is_closed)", () => {
 });
 
 test("disk: btrfs/dmsetup global flags do not bypass", () => {
-  assertBlocks("btrfs --format json subvolume delete /mnt/foo", "high", "btrfs-subvolume-delete");
-  assertBlocks("btrfs --verbose check --repair /dev/sda1", "high", "btrfs-check-repair");
+  assertBlocks(
+    "btrfs --format json subvolume delete /mnt/foo",
+    "high",
+    "btrfs-subvolume-delete",
+  );
+  assertBlocks(
+    "btrfs --verbose check --repair /dev/sda1",
+    "high",
+    "btrfs-check-repair",
+  );
   assertBlocks("dmsetup -v remove_all", "high", "dmsetup-remove-all");
   assertBlocks("dmsetup --noudevsync remove my-dev", "high", "dmsetup-remove");
 });
@@ -125,7 +132,11 @@ test("disk: unrelated commands no match (disk_unrelated_commands_no_match)", () 
 
 test("perms: quote bypass does not evade system-dir block", () => {
   assertBlocks('chmod -R 0755 "/etc"', "critical", "chmod-recursive-root");
-  assertBlocks("chmod -R 0755 '/usr/local'", "critical", "chmod-recursive-root");
+  assertBlocks(
+    "chmod -R 0755 '/usr/local'",
+    "critical",
+    "chmod-recursive-root",
+  );
   assertBlocks('chown -R user:user "/var"', "high", "chown-recursive-root");
   assertBlocks("chown --recursive root '/etc'", "high", "chown-recursive-root");
   assertBlocks('setfacl -R -m u:app:rwx "/etc"', "critical", "setfacl-all");
@@ -168,11 +179,23 @@ test("services: shutdown + reboot reachable & block", () => {
 });
 
 test("services: systemctl global flags do not bypass", () => {
-  assertBlocks("systemctl -H remote-host stop sshd", "high", "systemctl-stop-critical");
+  assertBlocks(
+    "systemctl -H remote-host stop sshd",
+    "high",
+    "systemctl-stop-critical",
+  );
   assertBlocks("systemctl --user disable my-unit", "high", "systemctl-stop");
-  assertBlocks("systemctl -M machine mask containerd", "high", "systemctl-stop-critical");
+  assertBlocks(
+    "systemctl -M machine mask containerd",
+    "high",
+    "systemctl-stop-critical",
+  );
   assertBlocks("systemctl --system poweroff", "critical", "systemctl-power");
-  assertBlocks("systemctl -H host isolate rescue.target", "high", "systemctl-isolate");
+  assertBlocks(
+    "systemctl -H host isolate rescue.target",
+    "high",
+    "systemctl-isolate",
+  );
   // Safe patterns with global flags still short-circuit.
   assertAllows("systemctl -H remote-host status sshd");
   assertAllows("systemctl --user list-units");

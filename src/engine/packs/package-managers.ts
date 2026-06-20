@@ -49,14 +49,20 @@ const safePatterns: SafeRule[] = [
   },
   // audit is safe.
   { name: "npm-audit", re: /\bnpm\b(?:\s+--?\S+(?:\s+\S+)?)*\s+audit(?=\s|$)/ },
-  { name: "yarn-audit", re: /\byarn\b(?:\s+--?\S+(?:\s+\S+)?)*\s+audit(?=\s|$)/ },
+  {
+    name: "yarn-audit",
+    re: /\byarn\b(?:\s+--?\S+(?:\s+\S+)?)*\s+audit(?=\s|$)/,
+  },
   // pip list/show are safe.
   {
     name: "pip-list",
     re: /\bpip\b(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:list|show|freeze)(?=\s|$)/,
   },
   // poetry show/info are safe.
-  { name: "poetry-show", re: /\bpoetry\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/ },
+  {
+    name: "poetry-show",
+    re: /\bpoetry\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)/,
+  },
   {
     name: "poetry-env-list",
     re: /\bpoetry\b(?:\s+--?\S+(?:\s+\S+)?)*\s+env\s+list(?=\s|$)/,
@@ -102,7 +108,8 @@ const destructivePatterns: DestructiveRule[] = [
     name: "yarn-publish",
     re: /\byarn\b.*?\bpublish\b(?!.*--dry-run(?:=true)?(?:\s|$))/,
     severity: "high",
-    reason: "yarn publish releases a package publicly. Verify package.json first.",
+    reason:
+      "yarn publish releases a package publicly. Verify package.json first.",
   },
   {
     name: "pnpm-publish",
@@ -115,21 +122,24 @@ const destructivePatterns: DestructiveRule[] = [
     name: "npm-unpublish",
     re: /\bnpm\b.*?\bunpublish(?=\s|$)/,
     severity: "high",
-    reason: "npm unpublish removes a published package. This can break dependent projects.",
+    reason:
+      "npm unpublish removes a published package. This can break dependent projects.",
   },
   // pip uninstall.
   {
     name: "pip-uninstall",
     re: /\bpip(?:3)?\b.*?\buninstall(?=\s|$)/,
     severity: "high",
-    reason: "pip uninstall removes installed packages. Verify dependencies before removing.",
+    reason:
+      "pip uninstall removes installed packages. Verify dependencies before removing.",
   },
   // pip install from URL (potential security risk).
   {
     name: "pip-url",
     re: /\bpip\b.*?\binstall\s+.*(?:https?:\/\/|git\+)/,
     severity: "high",
-    reason: "pip install from URL can install unvetted code. Verify the source first.",
+    reason:
+      "pip install from URL can install unvetted code. Verify the source first.",
   },
   // pip install --user or --system.
   {
@@ -143,14 +153,16 @@ const destructivePatterns: DestructiveRule[] = [
     name: "apt-remove",
     re: /\bapt(?:-get)?\b.*?\b(?:remove|purge|autoremove)(?=\s|$)/,
     severity: "high",
-    reason: "apt remove/purge removes packages. Verify no critical packages are affected.",
+    reason:
+      "apt remove/purge removes packages. Verify no critical packages are affected.",
   },
   // yum/dnf remove.
   {
     name: "yum-remove",
     re: /\b(?:yum|dnf)\b.*?\b(?:remove|erase|autoremove)(?=\s|$)/,
     severity: "high",
-    reason: "yum/dnf remove removes packages. Verify no critical packages are affected.",
+    reason:
+      "yum/dnf remove removes packages. Verify no critical packages are affected.",
   },
   // cargo publish.
   {
@@ -164,21 +176,24 @@ const destructivePatterns: DestructiveRule[] = [
     name: "cargo-yank",
     re: /\bcargo\b.*?\byank(?=\s|$)/,
     severity: "high",
-    reason: "cargo yank marks a version as unavailable. This can break dependent projects.",
+    reason:
+      "cargo yank marks a version as unavailable. This can break dependent projects.",
   },
   // gem push.
   {
     name: "gem-push",
     re: /\bgem\b.*?\bpush\b/,
     severity: "high",
-    reason: "gem push releases a gem to rubygems.org. Verify before publishing.",
+    reason:
+      "gem push releases a gem to rubygems.org. Verify before publishing.",
   },
   // brew uninstall.
   {
     name: "brew-uninstall",
     re: /\bbrew\b.*?\b(?:uninstall|remove)(?=\s|$)/,
     severity: "high",
-    reason: "brew uninstall removes packages. Verify no dependent packages are affected.",
+    reason:
+      "brew uninstall removes packages. Verify no dependent packages are affected.",
   },
   // poetry publish/remove.
   {
@@ -191,27 +206,31 @@ const destructivePatterns: DestructiveRule[] = [
     name: "poetry-remove",
     re: /\bpoetry\b.*?\bremove(?=\s|$)/,
     severity: "high",
-    reason: "poetry remove uninstalls a dependency. Verify no critical packages are affected.",
+    reason:
+      "poetry remove uninstalls a dependency. Verify no critical packages are affected.",
   },
   // maven deploy / release.
   {
     name: "maven-deploy",
     re: /\b(?:mvn|mvnw)\b.*?\bdeploy\b/,
     severity: "high",
-    reason: "mvn deploy publishes artifacts to a remote repository. Verify target repository.",
+    reason:
+      "mvn deploy publishes artifacts to a remote repository. Verify target repository.",
   },
   {
     name: "maven-release-perform",
     re: /\b(?:mvn|mvnw)\s+.*release:perform\b/,
     severity: "high",
-    reason: "mvn release:perform publishes a release. Verify version and repository.",
+    reason:
+      "mvn release:perform publishes a release. Verify version and repository.",
   },
   // gradle publish / release.
   {
     name: "gradle-publish",
     re: /\b(?:gradle|gradlew)\s+.*\bpublish\b/,
     severity: "high",
-    reason: "gradle publish uploads artifacts. Use --dry-run first when possible.",
+    reason:
+      "gradle publish uploads artifacts. Use --dry-run first when possible.",
   },
 ];
 

@@ -68,24 +68,54 @@ const HEREDOC_TRIGGER_SOURCES: Array<{ src: string; flags: string }> = [
   // catches this, but DCG lists it explicitly.
   { src: String.raw`<<<`, flags: "" },
   // Python inline execution.
-  { src: String.raw`\bpython[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[ce][A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\bpython[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[ce][A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // Ruby inline execution.
-  { src: String.raw`\bruby[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*e[A-Za-z]*(?:\s|['"]|$)`, flags: "" },
-  { src: String.raw`\birb[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*e[A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\bruby[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*e[A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
+  {
+    src: String.raw`\birb[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*e[A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // Perl inline execution.
-  { src: String.raw`\bperl[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[eE][A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\bperl[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[eE][A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // Node.js inline execution.
-  { src: String.raw`\bnode(?:js)?[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[ep][A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\bnode(?:js)?[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*[ep][A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // PHP inline execution.
-  { src: String.raw`\bphp[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*r[A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\bphp[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*r[A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // Lua inline execution.
-  { src: String.raw`\blua[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*e[A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\blua[0-9.]*(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*e[A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // Shell inline execution.
-  { src: String.raw`\b(?:sh|bash|zsh|fish)(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*c[A-Za-z]*(?:\s|['"]|$)`, flags: "" },
+  {
+    src: String.raw`\b(?:sh|bash|zsh|fish)(?:\.exe)?\b(?:\s+(?:--\S+|-[A-Za-z]+))*\s+-[A-Za-z]*c[A-Za-z]*(?:\s|['"]|$)`,
+    flags: "",
+  },
   // PowerShell inline execution. DCG used inline `(?i)`; ported to the "i" flag.
-  { src: String.raw`\b(?:powershell|pwsh)(?:\.exe)?["']?(?:\s+(?:-\S+))*\s+-c[a-z]*\s*['"]`, flags: "i" },
+  {
+    src: String.raw`\b(?:powershell|pwsh)(?:\.exe)?["']?(?:\s+(?:-\S+))*\s+-c[a-z]*\s*['"]`,
+    flags: "i",
+  },
   // Piped execution to interpreters.
-  { src: String.raw`\|\s*(?:python[0-9.]*|ruby[0-9.]*|perl[0-9.]*|node(?:js)?[0-9.]*|php[0-9.]*|lua[0-9.]*|sh|bash)(?:\.exe)?\b`, flags: "" },
+  {
+    src: String.raw`\|\s*(?:python[0-9.]*|ruby[0-9.]*|perl[0-9.]*|node(?:js)?[0-9.]*|php[0-9.]*|lua[0-9.]*|sh|bash)(?:\.exe)?\b`,
+    flags: "",
+  },
   // Piped to xargs.
   { src: String.raw`\|\s*xargs\s`, flags: "" },
   // eval/exec with quoted argument.
@@ -160,7 +190,11 @@ function scanTopLevel(s: string, start: number, depth: number): boolean {
   return false;
 }
 
-function scanDoubleQuotes(s: string, start: number, depth: number): [boolean, number] {
+function scanDoubleQuotes(
+  s: string,
+  start: number,
+  depth: number,
+): [boolean, number] {
   if (depth > MAX_DEPTH) {
     return [true, s.length];
   }
@@ -187,7 +221,11 @@ function scanDoubleQuotes(s: string, start: number, depth: number): [boolean, nu
   return [false, len];
 }
 
-function scanDollarParen(s: string, start: number, depth: number): [boolean, number] {
+function scanDollarParen(
+  s: string,
+  start: number,
+  depth: number,
+): [boolean, number] {
   if (depth > MAX_DEPTH) {
     return [true, s.length];
   }
@@ -233,7 +271,11 @@ function scanDollarParen(s: string, start: number, depth: number): [boolean, num
   return [false, len];
 }
 
-function scanBackticks(s: string, start: number, depth: number): [boolean, number] {
+function scanBackticks(
+  s: string,
+  start: number,
+  depth: number,
+): [boolean, number] {
   if (depth > MAX_DEPTH) {
     return [true, s.length];
   }
@@ -288,7 +330,11 @@ export function checkTriggers(command: string): boolean {
 // Tier 2: Content extraction
 // ============================================================================
 
-type HeredocType = "standard" | "tab-stripped" | "here-string" | "indent-stripped";
+type HeredocType =
+  | "standard"
+  | "tab-stripped"
+  | "here-string"
+  | "indent-stripped";
 
 // Heredoc extractor: <<[-~]? followed by quoted/unquoted delimiter.
 // Ported verbatim from HEREDOC_EXTRACTOR (src/heredoc.rs). Group 1 = operator
@@ -308,7 +354,8 @@ const HERESTRING_UNQUOTED = /<<<\s*([^'\x22\s]\S*)/g;
 // so ONLY the PowerShell host name is case-insensitive (matching DCG), while the
 // rest of the alternation stays case-sensitive (a blanket "i" flag would wrongly
 // match `PYTHON`, `BASH`, etc., which DCG does not).
-const POWERSHELL_CI = "[Pp][Oo][Ww][Ee][Rr][Ss][Hh][Ee][Ll][Ll]|[Pp][Ww][Ss][Hh]";
+const POWERSHELL_CI =
+  "[Pp][Oo][Ww][Ee][Rr][Ss][Hh][Ee][Ll][Ll]|[Pp][Ww][Ss][Hh]";
 const INLINE_INTERP =
   "(python[0-9.]*(?:\\.exe)?|ruby[0-9.]*(?:\\.exe)?|irb[0-9.]*(?:\\.exe)?|perl[0-9.]*(?:\\.exe)?|node(js)?[0-9.]*(?:\\.exe)?|php[0-9.]*(?:\\.exe)?|lua[0-9.]*(?:\\.exe)?|sh(?:\\.exe)?|bash(?:\\.exe)?|zsh(?:\\.exe)?|fish(?:\\.exe)?|(?:" +
   POWERSHELL_CI +
@@ -325,7 +372,7 @@ const INLINE_SCRIPT_SINGLE_QUOTE = new RegExp(
 const INLINE_SCRIPT_DOUBLE_QUOTE = new RegExp(
   "\\b" +
     INLINE_INTERP +
-    "\\b['\"]?(?:\\s+(?:--\\S+|-[A-Za-z]+))*\\s+(-[A-Za-z]*[ceECpr][A-Za-z]*)\\s*\"([^\"]*)\"",
+    '\\b[\'"]?(?:\\s+(?:--\\S+|-[A-Za-z]+))*\\s+(-[A-Za-z]*[ceECpr][A-Za-z]*)\\s*"([^"]*)"',
   "g",
 );
 
@@ -351,7 +398,10 @@ function isBinaryContent(content: string): boolean {
     }
     // Control chars (excluding \n \r \t) and U+FFFD replacement char.
     const isControl = code < 0x20 || (code >= 0x7f && code <= 0x9f);
-    if ((isControl && ch !== "\n" && ch !== "\r" && ch !== "\t") || code === 0xfffd) {
+    if (
+      (isControl && ch !== "\n" && ch !== "\r" && ch !== "\t") ||
+      code === 0xfffd
+    ) {
       suspect += 1;
     }
   }
@@ -401,7 +451,8 @@ void matchesInterpreter; // retained for fidelity; not on the hot path here.
  */
 function isInlineFlag(cmdName: string, flag: string): boolean {
   const cmdLower = cmdName.toLowerCase();
-  const isPowershell = cmdLower.startsWith("powershell") || cmdLower.startsWith("pwsh");
+  const isPowershell =
+    cmdLower.startsWith("powershell") || cmdLower.startsWith("pwsh");
   if (cmdName.startsWith("python")) {
     return flag.includes("c") || flag.includes("e");
   } else if (cmdName.startsWith("ruby") || cmdName.startsWith("irb")) {
@@ -594,7 +645,10 @@ function extractHeredocBody(
   return null;
 }
 
-function joinHeredocBody(bodyLines: string[], heredocType: HeredocType): string {
+function joinHeredocBody(
+  bodyLines: string[],
+  heredocType: HeredocType,
+): string {
   if (heredocType === "tab-stripped") {
     return bodyLines.map((l) => l.replace(/^\t+/, "")).join("\n");
   }
@@ -611,7 +665,9 @@ function joinHeredocBody(bodyLines: string[], heredocType: HeredocType): string 
       .map((l) => l.length - l.replace(/^\s+/, "").length);
     const minIndent = indents.length > 0 ? Math.min(...indents) : 0;
     return bodyLines
-      .map((l) => (l.length >= minIndent ? l.slice(minIndent) : l.replace(/^\s+/, "")))
+      .map((l) =>
+        l.length >= minIndent ? l.slice(minIndent) : l.replace(/^\s+/, ""),
+      )
       .join("\n");
   }
   // standard / here-string
@@ -633,7 +689,8 @@ function extractHeredocs(
   HEREDOC_EXTRACTOR.lastIndex = 0;
   let cap: RegExpExecArray | null;
   while ((cap = HEREDOC_EXTRACTOR.exec(command)) !== null) {
-    if (cap.index === HEREDOC_EXTRACTOR.lastIndex) HEREDOC_EXTRACTOR.lastIndex += 1;
+    if (cap.index === HEREDOC_EXTRACTOR.lastIndex)
+      HEREDOC_EXTRACTOR.lastIndex += 1;
     if (timedOut(timer)) return;
     if (out.length >= limits.maxHeredocs) {
       return;
@@ -666,7 +723,14 @@ function extractHeredocs(
     const nlRel = command.slice(fullMatchEnd).indexOf("\n");
     const startPos = nlRel === -1 ? command.length : fullMatchEnd + nlRel;
 
-    const body = extractHeredocBody(command, startPos, delimiter, heredocType, limits, timer);
+    const body = extractHeredocBody(
+      command,
+      startPos,
+      delimiter,
+      heredocType,
+      limits,
+      timer,
+    );
     if (body !== null) {
       out.push(body);
     } else if (timer.timedOut) {
@@ -707,7 +771,11 @@ export function extractHeredocBodies(
     return [];
   }
 
-  const timer: TimerState = { start: now(), timeoutMs: limits.timeoutMs, timedOut: false };
+  const timer: TimerState = {
+    start: now(),
+    timeoutMs: limits.timeoutMs,
+    timedOut: false,
+  };
   const out: string[] = [];
 
   if (timedOut(timer)) {
