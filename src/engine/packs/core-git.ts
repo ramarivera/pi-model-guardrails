@@ -37,19 +37,25 @@ const safePatterns: SafeRule[] = [
     name: "checkout-orphan",
     re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*checkout\s+--orphan\s+/,
   },
-  // restore --staged only affects the index, not the working tree.
+  // restore --staged / -S only affects the index, not the working tree. Match
+  // --staged/-S anywhere in the restore segment (DIVERGES from DCG's
+  // first-token-only form so `git restore --source=X --staged f` is allowed),
+  // as long as no --worktree/-W appears in the same segment. The bounded
+  // `[^&;|`()<>]*` keeps the lookahead/scan within one shell segment.
   {
     name: "restore-staged-long",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+--staged\s+(?!.*--worktree)(?!.*-W\b)/,
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\b(?![^&;|`()<>]*(?:--worktree\b|-W\b))[^&;|`()<>]*--staged\b/,
   },
   {
     name: "restore-staged-short",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+-S\s+(?!.*--worktree)(?!.*-W\b)/,
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\b(?![^&;|`()<>]*(?:--worktree\b|-W\b))[^&;|`()<>]*-S\b/,
   },
-  // clean dry-run just previews, doesn't delete.
+  // clean dry-run just previews, doesn't delete. Match -n anywhere in the clean
+  // segment (DIVERGES from DCG first-token form) so `git clean -d -n -f` is not
+  // wrongly blocked by the force rule below.
   {
     name: "clean-dry-run-short",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*clean\s+-[a-z]*n[a-z]*/,
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*clean\s+(?:[^\s&;|`()<>]+\s+)*-[a-z]*n[a-z]*/,
   },
   {
     name: "clean-dry-run-long",
@@ -108,10 +114,13 @@ const destructivePatterns: DestructiveRule[] = [
       s("git diff HEAD {ref} -- {path}", "Preview what would change before overwriting"),
     ],
   },
-  // restore without --staged affects the working tree.
+  // restore without --staged affects the working tree. The added
+  // `(?![^&;|`()<>]*(?:--worktree|-W))` lookahead defers the --worktree/-W forms
+  // to restore-worktree-explicit below (correct rule attribution), and the
+  // safe restore-staged rules above already shield the index-only forms.
   {
     name: "restore-worktree",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+(?!--staged\b)(?!-S\b)/,
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+(?!--staged\b)(?!-S\b)(?![^&;|`()<>]*(?:--worktree\b|-W\b))/,
     severity: "high",
     reason:
       "git restore discards uncommitted changes. Use 'git stash' or 'git diff' first.",
@@ -137,7 +146,7 @@ const destructivePatterns: DestructiveRule[] = [
   },
   {
     name: "restore-worktree-explicit",
-    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+.*(?:--worktree|-W\b)/,
+    re: /(?:^|[^A-Za-z0-9_-])git\s+(?:\S+\s+)*restore\s+[^&;|`()<>]*(?:--worktree|-W\b)/,
     severity: "high",
     reason: "git restore --worktree/-W discards uncommitted changes permanently.",
     explanation:

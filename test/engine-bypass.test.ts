@@ -75,3 +75,20 @@ test("lone temp-safe rm remains allowed", () => {
   expectAllow("rm -rf /tmp/x");
   expectAllow("rm -rf /tmp/build-cache");
 });
+
+// HIGH (FP): git restore false positives from anchored/unbounded patterns.
+test("restore --staged is allowed regardless of flag order", () => {
+  expectAllow("git restore --staged file.txt");
+  expectAllow("git restore --source=HEAD~1 --staged x");
+  expectAllow("git restore -s HEAD~1 --staged x");
+});
+
+test("restore-worktree pattern does not bridge across a segment boundary", () => {
+  // safe restore + an unrelated later command containing -W must NOT deny
+  expectAllow("git restore --staged x && grep -W pattern f");
+});
+
+test("genuine working-tree restore still blocks", () => {
+  expectDeny("git restore file.txt");
+  expectDeny("git restore --worktree file.txt");
+});
