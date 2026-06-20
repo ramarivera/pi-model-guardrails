@@ -412,7 +412,14 @@ function extractJsonObject(raw: string): string | undefined {
       depth++;
     } else if (ch === "}") {
       depth--;
-      if (depth === 0) return raw.slice(start, i + 1);
+      if (depth === 0) {
+        // Reject SUSPICIOUS multi-object output (a prompt-injection pre-seeding a
+        // fake verdict before the real one): a legitimate grade is exactly ONE
+        // JSON object. A stray top-level "{" after the first object => bail to a
+        // fail-toward-gate verdict rather than trusting the first object.
+        if (raw.indexOf("{", i + 1) !== -1) return undefined;
+        return raw.slice(start, i + 1);
+      }
     }
   }
   return undefined;
@@ -428,7 +435,10 @@ export function cacheKey(input: GradeInput): string {
   const argsHash = sha8(input.command);
   const constraintsHash = sha8(constraintsFingerprint(input.activeConstraints));
   const viol = input.violatedConstraintId ?? "";
-  return `${input.toolName}|${argsHash}|${constraintsHash}|${viol}|${input.stateEpoch}`;
+  // Fold recentActions into the key: the same command under different recent
+  // history is a different grade prompt, so it must not collide on the cache.
+  const recentHash = sha8((input.recentActions ?? []).join("\n"));
+  return `${input.toolName}|${argsHash}|${constraintsHash}|${viol}|${recentHash}|${input.stateEpoch}`;
 }
 
 /** Stable fingerprint of the active constraint set (id+severity+statement). */
@@ -459,10 +469,13 @@ export function withTimeout<T>(
   timeoutMs: number,
   message: string,
 ): Promise<T> {
-  if (!(timeoutMs > 0)) return promise;
+  // NEVER disable the timeout — it is the ONLY protection against a hung model
+  // wedging the (un-cancellable) beforeToolCall window. A non-positive /
+  // misconfigured value falls back to a safe floor instead of "no timeout".
+  const ms = timeoutMs > 0 ? timeoutMs : 1000;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    timer = setTimeout(() => reject(new Error(message)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => {
     if (timer !== undefined) clearTimeout(timer);

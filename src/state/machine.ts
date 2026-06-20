@@ -144,6 +144,7 @@ export function transition(input: TransitionInput): TransitionResult {
         counts,
         meta,
         config,
+        grader !== undefined,
       );
     case "GATED":
       return fromGated(current, deterministic, grader, dirty, counts, config);
@@ -267,6 +268,7 @@ function fromWatch(
   counts: boolean,
   meta: CallMeta,
   config: MachineConfig,
+  graderPresent: boolean,
 ): TransitionResult {
   if (dirty) {
     const reason = deterministic?.reason ?? "Second deviation while on watch.";
@@ -308,10 +310,15 @@ function fromWatch(
     };
   }
 
+  const advanced = nextStreak !== current.cleanStreak;
   return {
-    next: { ...current, cleanStreak: nextStreak },
-    action: gateActionForWatch(meta, config),
-    transitioned: nextStreak !== current.cleanStreak,
+    // Bump epoch on each streak advance so a repeated identical call can't be
+    // served a cached grade to inflate the watch streak (the cache keys on epoch).
+    next: advanced ? bumpEpoch({ ...current, cleanStreak: nextStreak }) : current,
+    // A grader-confirmed clean call (graderPresent => the gate passed) is ALLOWED
+    // to run; pre-grade it is gate-required (mutating) / allow (read-only).
+    action: graderPresent ? "allow" : gateActionForWatch(meta, config),
+    transitioned: advanced,
   };
 }
 
@@ -397,9 +404,11 @@ function fromGated(
   }
 
   return {
-    next: { ...current, cleanStreak: nextStreak },
+    // Epoch bump per advance => a fresh cache key each step, so the recovery
+    // streak can't be climbed by replaying one cached compliant verdict.
+    next: bumpEpoch({ ...current, cleanStreak: nextStreak }),
     action: "allow",
-    transitioned: nextStreak !== current.cleanStreak,
+    transitioned: true,
   };
 }
 
@@ -479,13 +488,15 @@ function fromRecovering(
   // yet confirmed). The call still runs (clean grade => allow); recovery keeps
   // accruing and every call stays graded until COMPLIANT.
   return {
-    next: { ...current, cleanStreak: nextStreak },
+    // Epoch bump per advance => fresh cache key per recovery step (no streak
+    // inflation from a replayed cached verdict).
+    next: bumpEpoch({ ...current, cleanStreak: nextStreak }),
     action: "allow",
     reason:
       nextStreak >= config.gatedCleanStreak
         ? "Streak met; awaiting grader back-on-track confirmation."
         : undefined,
-    transitioned: nextStreak !== current.cleanStreak,
+    transitioned: true,
   };
 }
 

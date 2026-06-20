@@ -224,7 +224,8 @@ test("WATCH clears to COMPLIANT after watchCleanStreak clean non-trivial calls",
   const r2 = step(r1.next, { det: CLEAN_DET, meta: NONTRIVIAL_NONMUTATING });
   assert.equal(r2.next.state, "COMPLIANT");
   assert.equal(r2.next.cleanStreak, 0);
-  assert.equal(r2.next.stateEpoch, 2); // recovery transition bumps epoch
+  // Each streak advance bumps epoch (anti-cache-inflation): r1 1->2, recovery 2->3.
+  assert.equal(r2.next.stateEpoch, 3);
   assert.equal(r2.next.cooldownRemaining, cfg().cooldownTurns); // cooldown armed
 });
 
