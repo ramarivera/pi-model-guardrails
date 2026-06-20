@@ -4,13 +4,14 @@
 // agent can hide a destructive sink behind one level of shell indirection that
 // the literal patterns never see:
 //
-//   x=rm; $x -rf /important            (variable indirection)
-//   alias nuke='rm -rf'; nuke /important   (alias expansion)
-//   d="rm -rf"; $d /important          (multi-word value, word-split on use)
+//   x=rm; $x -rf ~                 (variable indirection)
+//   alias d=rm; d -rf ~            (alias expansion)
+//   c="rm -rf"; $c ~               (multi-word value, word-split on use)
+//   a=r; b=m; $a$b -rf ~           (verb built by concatenation)
 //
 // This pass does a SMALL, bounded, quote-aware structural resolution of those
-// two vectors — variable substitution and alias expansion within a single
-// command line — and returns an EXPANDED command string. The caller re-runs the
+// vectors — variable substitution and alias expansion within a single command
+// line — and returns the resolved SINK statement(s). The caller re-runs the
 // (unchanged) regex engine on the expansion, so an aliased `rm -rf` is caught by
 // the very same rule that catches a bare `rm -rf`. No rule duplication.
 //
@@ -24,6 +25,14 @@
 // any unexpected input, simply returns undefined (the engine falls back to the
 // regex packs — DCG parity), so this layer can only ADD detection, never remove
 // the baseline.
+//
+// HEAD-AWARE (false-positive defense): a statement is only treated as a sink
+// when indirection creates/changes its COMMAND HEAD (executable position) —
+// `$x -rf ~` (x=rm) or `alias d=rm; d -rf ~`. Indirection that only touches
+// ARGUMENT positions is ignored: `v=rm; o=-rf; echo $v $o ~` resolves to a
+// harmless `echo rm -rf ~` print, NOT an executed sink, so re-evaluating it
+// would false-positive against the position-agnostic regex packs. We resolve one
+// level of value indirection too (`a=rm; b=$a; $b -rf ~`), left-to-right.
 //
 // SCOPE (deliberate): single-line variable indirection + alias expansion only.
 // Interprocedural function-wrapper dataflow (`f(){ rm -rf "$1"; }; f /`) and
@@ -47,9 +56,13 @@ const MAX_ALIAS_EXPANSIONS = 8;
 const MAX_INDIRECTION_INPUT = 8192;
 
 export interface IndirectionResult {
-  /** The expanded command (vars/aliases resolved). Re-evaluate THIS string. */
+  /**
+   * The resolved SINK statement(s) — only commands whose head (executable) was
+   * created/changed by indirection, fully expanded, newline-joined. Re-evaluate
+   * THIS string. (Arg-only expansions like `echo $v` are deliberately excluded.)
+   */
   expanded: string;
-  /** What kinds of indirection were resolved (for decision attribution). */
+  /** What kinds of indirection produced the sink(s) (for attribution). */
   notes: string[];
 }
 
@@ -96,23 +109,27 @@ function resolveInner(command: string): IndirectionResult | undefined {
   const vars = new Map<string, string>();
   const aliases = new Map<string, string>();
   const notes = new Set<string>();
-  const expandedStatements: string[] = [];
-  let changed = false;
+
+  // Collect ONLY statements whose COMMAND HEAD (the executable) was created or
+  // changed by indirection — an aliased/var-hidden SINK. We do NOT collect
+  // statements where indirection only touched argument positions: a resolved
+  // `echo $v $o $t` -> `echo rm -rf ~` is a harmless print, and re-evaluating it
+  // would false-positive (the regex packs match destructive substrings
+  // position-agnostically). The feature is "aliased SINK detection" — a command
+  // being EXECUTED, not destructive-looking text being passed to an inert
+  // command. This also bounds the re-eval cost: only real resolved sinks (not
+  // the whole input) are handed back to the engine.
+  const sinks: string[] = [];
 
   for (const statement of statements) {
-    const trimmed = statement.trim();
-    if (trimmed.length === 0) {
-      expandedStatements.push(statement);
-      continue;
-    }
+    if (statement.trim().length === 0) continue;
 
     const ctx = classifySegment(statement);
     const tokens = wordTokens(ctx.normalized);
 
-    // `alias NAME=VALUE [NAME2=VALUE2 ...]` — record, keep statement as-is.
+    // `alias NAME=VALUE [NAME2=VALUE2 ...]` — record, contributes no sink itself.
     if (ctx.executable === "alias") {
-      recordAliases(tokens.slice(1), aliases);
-      expandedStatements.push(statement);
+      recordAliases(tokens.slice(1), aliases, vars);
       continue;
     }
 
@@ -121,30 +138,24 @@ function resolveInner(command: string): IndirectionResult | undefined {
     const firstCmdIdx = recordLeadingAssignments(tokens, vars);
 
     // A pure-assignment statement (no command word) has nothing to expand.
-    if (firstCmdIdx >= tokens.length) {
-      expandedStatements.push(statement);
-      continue;
-    }
+    if (firstCmdIdx >= tokens.length) continue;
 
     const cmdTokens = tokens.slice(firstCmdIdx);
-    const { expanded, didExpand } = expandCommand(
-      cmdTokens,
-      vars,
-      aliases,
-      notes,
-    );
-    if (didExpand) {
-      changed = true;
-      // Re-attach the leading assignments so e.g. `FOO=bar $x` still parses.
+    const {
+      expanded,
+      headChanged,
+      notes: stmtNotes,
+    } = expandCommand(cmdTokens, vars, aliases);
+    if (headChanged) {
+      // Re-attach the leading env-assignments so e.g. `FOO=bar $x` still parses.
       const prefix = tokens.slice(0, firstCmdIdx);
-      expandedStatements.push([...prefix, ...expanded].join(" "));
-    } else {
-      expandedStatements.push(statement);
+      sinks.push([...prefix, ...expanded].join(" "));
+      for (const n of stmtNotes) notes.add(n);
     }
   }
 
-  if (!changed) return undefined;
-  return { expanded: expandedStatements.join("\n"), notes: [...notes] };
+  if (sinks.length === 0) return undefined;
+  return { expanded: sinks.join("\n"), notes: [...notes] };
 }
 
 /**
@@ -166,22 +177,29 @@ function wordTokens(normalized: string): string[] {
 
 /**
  * Record `alias NAME=VALUE` pairs from the tokens after the `alias` keyword.
- * `alias -p`/`alias` with no `=` are listings — ignored.
+ * `alias -p`/`alias` with no `=` are listings — ignored. Values resolve already-
+ * known vars (`alias d=$x`).
  */
-function recordAliases(tokens: string[], aliases: Map<string, string>): void {
+function recordAliases(
+  tokens: string[],
+  aliases: Map<string, string>,
+  vars: Map<string, string>,
+): void {
   for (const token of tokens) {
     if (token.startsWith("-")) continue; // flags like `alias -p`
     const pair = splitAssignment(token);
     if (!pair) continue;
     if (!isPlainName(pair.name)) continue;
-    aliases.set(pair.name, dequote(pair.value));
+    aliases.set(pair.name, resolveValue(pair.value, vars));
   }
 }
 
 /**
  * Record leading `NAME=VALUE` assignment tokens into `vars`. Returns the index
  * of the first NON-assignment token (the command word), or tokens.length if the
- * whole statement was assignments.
+ * whole statement was assignments. Processed left-to-right, so a value can
+ * reference an earlier var (`a=rm; b=$a`) — one level of value indirection,
+ * resolved against the vars already seen (no recursion, no cycles).
  */
 function recordLeadingAssignments(
   tokens: string[],
@@ -191,24 +209,39 @@ function recordLeadingAssignments(
   for (; i < tokens.length; i++) {
     const pair = splitAssignment(tokens[i]);
     if (!pair || !isPlainName(pair.name)) break;
-    vars.set(pair.name, dequote(pair.value));
+    vars.set(pair.name, resolveValue(pair.value, vars));
   }
   return i;
 }
 
 /**
+ * Resolve an assignment/alias VALUE: a wholly single-quoted value is literal
+ * (bash does not expand inside '...'), otherwise dequote then substitute any
+ * already-known vars.
+ */
+function resolveValue(rawValue: string, vars: Map<string, string>): string {
+  if (rawValue.startsWith("'")) return dequote(rawValue);
+  return substituteVars(dequote(rawValue), vars);
+}
+
+/**
  * Expand a command's tokens: alias-expand the leading word (bounded), then
- * substitute `$NAME`/`${NAME}` references from `vars`. Returns the expanded
- * tokens and whether anything actually changed.
+ * substitute `$NAME`/`${NAME}` references from `vars`.
+ *
+ * Returns the expanded tokens, `headChanged` (true iff indirection created or
+ * changed the COMMAND HEAD — alias-expanded the leading word, or substituted a
+ * var into the executable position), and the attribution notes for that head.
+ * The caller only treats a statement as a sink when `headChanged` — an
+ * arg-position substitution (`echo $v`) is not a sink.
  */
 function expandCommand(
   cmdTokens: string[],
   vars: Map<string, string>,
   aliases: Map<string, string>,
-  notes: Set<string>,
-): { expanded: string[]; didExpand: boolean } {
+): { expanded: string[]; headChanged: boolean; notes: string[] } {
   let tokens = [...cmdTokens];
-  let didExpand = false;
+  let headChanged = false;
+  const notes = new Set<string>();
 
   // Alias-expand the leading command word, one level at a time, bounded.
   const seen = new Set<string>();
@@ -222,15 +255,17 @@ function expandCommand(
     const expandedHead = wordTokens(expansion);
     if (expandedHead.length === 0) break;
     tokens = [...expandedHead, ...tokens.slice(1)];
-    didExpand = true;
+    headChanged = true;
     notes.add("alias");
   }
 
-  // Substitute variable references in every token.
-  const substituted = tokens.map((token) => {
+  // Substitute variable references in every token. Only a change to the HEAD
+  // (index 0) makes this a sink; arg-position changes still expand (so the
+  // sink's flags/targets resolve) but do not by themselves trigger re-eval.
+  const substituted = tokens.map((token, idx) => {
     const next = substituteVars(token, vars);
-    if (next !== token) {
-      didExpand = true;
+    if (next !== token && idx === 0) {
+      headChanged = true;
       notes.add("variable");
     }
     return next;
@@ -241,7 +276,11 @@ function expandCommand(
   const flattened = substituted.flatMap((t) =>
     t.includes(" ") ? t.split(/\s+/) : t,
   );
-  return { expanded: flattened.filter((t) => t.length > 0), didExpand };
+  return {
+    expanded: flattened.filter((t) => t.length > 0),
+    headChanged,
+    notes: [...notes],
+  };
 }
 
 /**

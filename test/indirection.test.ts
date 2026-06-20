@@ -141,3 +141,44 @@ test("integration: resolver never downgrades an already-blocked command", () => 
   // A real destructive sink plus a benign assignment: still blocked.
   assert.ok(blocks("rm -rf ~; x=ls; $x"));
 });
+
+// ---------------------------------------------------------------------------
+// Adversarial-review regressions.
+//   Round 1 (bypass hunt): keyword-built-from-concatenation must NOT be
+//     quick-rejected before the Tier-3 pass runs.
+//   Round 2 (FP hunt): indirection in ARGUMENT position (echo/printf/true args)
+//     must NOT be escalated to a block — only an executed SINK head counts.
+// ---------------------------------------------------------------------------
+
+test("regression(bypass): verb built by concatenation is blocked", () => {
+  // `a=r; b=m; $a$b -rf ~` — no literal `rm` substring anywhere, so the
+  // candidate-pack quick-reject is empty; the Tier-3 pass must still fire.
+  assert.ok(blocks("a=r; b=m; $a$b -rf ~"));
+  assert.match(reasonOf("a=r; b=m; $a$b -rf ~"), /indirection/);
+});
+
+test("regression(bypass): partial-var verb concatenation is blocked", () => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: literal bash ${...} in a plain string
+  assert.ok(blocks("x=m; r${x} -rf /etc"));
+  assert.ok(blocks("x=gi; y=t; $x$y reset --hard HEAD~1"));
+});
+
+test("regression(bypass): one level of value indirection (b=$a)", () => {
+  assert.ok(blocks("a=rm; b=$a; $b -rf ~"));
+});
+
+test("regression(FP): destructive-looking ARGS to an inert command are NOT blocked", () => {
+  // The verb lands in echo/printf/true ARG position — a print, not a sink.
+  assert.equal(blocks("v=rm; o=-rf; t=~; echo $v $o $t"), false);
+  assert.equal(blocks("v=rm; o=-rf; printf '%s %s %s' $v $o ~"), false);
+  assert.equal(blocks("g=git; true $g reset --hard HEAD~1"), false);
+  assert.equal(
+    blocks('verb=rm; opt=-rf; tgt=~; echo "Do not run: $verb $opt $tgt"'),
+    false,
+  );
+});
+
+test("regression(FP): a real sink in the SAME command still blocks", () => {
+  // echo-arg expansion is inert, but the trailing `$v $o ~` IS an executed sink.
+  assert.ok(blocks("v=rm; o=-rf; echo $v $o ~; $v $o ~"));
+});

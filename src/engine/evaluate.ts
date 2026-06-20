@@ -184,9 +184,16 @@ function evaluateInner(
   const prefilterText =
     normalizedText === command ? command : `${command}\n${normalizedText}`;
   const candidates = registry.candidatePacks(prefilterText);
-  if (candidates.length === 0) {
-    return allowDecision("quick_reject");
-  }
+  // NOTE: do NOT early-return on an empty candidate set. The literal prefilter
+  // scans raw + normalized text, but normalization does NOT substitute shell
+  // variables — that is the Tier-3 resolver's job (step 6). A command that
+  // BUILDS a destructive verb from indirection (`a=r; b=m; $a$b -rf ~`) shows no
+  // pack keyword in raw/normalized text, so candidatePacks is empty here even
+  // though the resolved form is `rm -rf ~`. Returning early would let the
+  // resolver never run. Instead we fall through: the main pack loop is a no-op on
+  // an empty candidate set (zero cost), and the Tier-3 pass below re-evaluates
+  // the RESOLVED command, which runs its own prefilter on text that now contains
+  // the literal keyword.
 
   // (5) Strictest-wins across candidate packs.
   let best: EngineDecision | undefined;
@@ -221,8 +228,10 @@ function evaluateInner(
 
   if (best) return best;
 
-  // (7) Nothing fired.
-  return allowDecision("no_match");
+  // (7) Nothing fired. Preserve the prefilter-vs-fullscan distinction: an empty
+  // candidate set means the keyword prefilter rejected it (quick_reject), a
+  // non-empty set means packs ran but nothing matched (no_match).
+  return allowDecision(candidates.length === 0 ? "quick_reject" : "no_match");
 }
 
 /** Tag an indirection-resolved decision so its origin is visible downstream. */
