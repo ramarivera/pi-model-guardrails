@@ -24,6 +24,7 @@ test("e2e fixture imports the live local .pi extension shim", async () => {
   assert.equal(typeof extension, "function");
   assert.equal(
     extensionInfo.description,
-    "Opinionated model guardrails that detect instruction violations and course-correct",
+    "Deterministic model guardrails: blocks destructive commands and arms a " +
+      "deviation state machine that gates a degraded session until it is provably back on track",
   );
 });

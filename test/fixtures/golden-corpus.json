@@ -1,0 +1,1872 @@
+[
+  {
+    "input": "sudo git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG strip_wrapper_prefixes test: normalizes to 'git reset --hard'. (decision is downstream; this case asserts wrapper strip via the corpus)",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "sudo -EH git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_sudo_with_combined_options -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "sudo -u root git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_sudo_with_user -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "sudo -l rm -rf /",
+    "expectedDecision": "deny",
+    "note": "DCG test_sudo_unknown_flag_does_not_strip: -l is unknown so NOT stripped; the embedded 'rm -rf /' still must be caught downstream (was_normalized()==false)",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "sudoku play",
+    "expectedDecision": "allow",
+    "note": "DCG test_not_sudo_prefix: 'sudoku' is not the sudo wrapper; unchanged",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "env GIT_DIR=.git git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_env_with_assignment -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "env FOO=`rm -rf /` git status",
+    "expectedDecision": "deny",
+    "note": "DCG test_env_assignment_with_backticks_preserved: inline-code assignment stops the strip so 'rm -rf /' remains visible to downstream packs",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "env FOO='`rm -rf /`' git status",
+    "expectedDecision": "allow",
+    "note": "DCG test_env_assignment_with_single_quoted_backticks_skipped -> 'git status' (single-quoted backticks are inert; assignment stripped)",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "command -v git",
+    "expectedDecision": "allow",
+    "note": "DCG test_command_v_not_wrapper: query mode, NOT stripped, unchanged",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "command -p git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_command_p_wrapper -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "\\git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_backslash_git -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "sudo env GIT_DIR=.git git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_sudo_env_chain: two wrappers stripped -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "env -S \"git reset --hard\"",
+    "expectedDecision": "deny",
+    "note": "DCG test_env_split_string_handling -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "env --chdir /tmp git reset --hard",
+    "expectedDecision": "deny",
+    "note": "DCG test_env_chdir_long_option -> 'git reset --hard'",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "git status",
+    "expectedDecision": "allow",
+    "note": "DCG test_no_wrappers: unchanged, safe",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "docker ps; docker logs x",
+    "expectedDecision": "allow",
+    "note": "DCG split_command_segments_handles_basic_separators: splits to ['docker ps','docker logs x']",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "docker ps |& grep nginx",
+    "expectedDecision": "allow",
+    "note": "DCG split test: |& splits -> ['docker ps','grep nginx']",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "command 2>&1 | tee log.txt",
+    "expectedDecision": "allow",
+    "note": "DCG split_command_segments_does_not_split_redirection_ampersands: 2>&1 stays, only | splits -> ['command 2>&1','tee log.txt']",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "make &>> build.log && echo done",
+    "expectedDecision": "allow",
+    "note": "DCG split test: &>> is redirection (no split), && splits -> ['make &>> build.log','echo done']",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo \"a; b && c || d\"",
+    "expectedDecision": "allow",
+    "note": "DCG split_command_segments_respects_quotes_and_escapes: quoted operators do NOT split -> single segment",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo a\\; b",
+    "expectedDecision": "allow",
+    "note": "DCG split test: escaped ; is literal -> single segment ['echo a\\; b']",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo $(docker system prune -a --volumes)",
+    "expectedDecision": "deny",
+    "note": "DCG split_command_segments_extracts_command_substitutions: inner 'docker system prune -a --volumes' emitted BEFORE outer; destructive inner must be caught",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo `velero backup delete nightly`",
+    "expectedDecision": "deny",
+    "note": "DCG split test: backtick subshell extracted -> 'velero backup delete nightly' surfaced first",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "cat <(docker system prune -a --volumes)",
+    "expectedDecision": "deny",
+    "note": "DCG split test: process substitution <(...) extracts inner destructive command",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo \"<(docker system prune -a --volumes)\"",
+    "expectedDecision": "allow",
+    "note": "DCG split test: <(...) LITERAL inside double quotes is NOT process substitution -> single segment, inner not executable",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo '$(docker system prune)'",
+    "expectedDecision": "allow",
+    "note": "DCG split test: $(...) inside single quotes is inert literal -> single segment",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "echo $((rm -rf /))",
+    "expectedDecision": "allow",
+    "note": "DCG split test: arithmetic expansion $((...)) is recursed but NOT emitted as a plain segment -> outer 'echo $((rm -rf /))' only; inner arithmetic is not an executable command context",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "op item get $(op item delete \"Prod Secret\")",
+    "expectedDecision": "deny",
+    "note": "DCG safe_outer_command_with_destructive_substitution_is_blocked: safe 'op item get' must not hide destructive 'op item delete' in the substitution",
+    "module": "src/engine/normalize.ts"
+  },
+  {
+    "input": "git reset --hard",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:reset-hard",
+    "note": "DCG check_command_prefers_higher_priority_pack / attribution_is_deterministic (src/packs/mod.rs ~3546-3591): with core.git + strict_git enabled, git reset --hard is blocked and attributed to core.git. Rule name is illustrative (actual DCG pattern name lives in core/git.rs).",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "docker system prune",
+    "expectedDecision": "deny",
+    "note": "DCG check_command_returns_pattern_name + destructive_match_contains_metadata (src/packs/mod.rs ~3656-3692): docker system prune is blocked, attributed to containers.docker, with non-empty reason.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "docker ps",
+    "expectedDecision": "allow",
+    "note": "DCG: docker ps matches a safe pattern in containers.docker (the safe-pattern-shields-pack basis of check_single). Allowed.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "docker ps; docker logs x",
+    "expectedDecision": "allow",
+    "note": "DCG split_command_segments_handles_basic_separators (src/packs/mod.rs ~2971): both segments are inspection-only docker commands; no destructive pattern fires => allow.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "DROP TABLE IF EXISTS foo;",
+    "expectedDecision": "deny",
+    "note": "DCG database_packs_block_drop_with_if_exists (src/packs/mod.rs ~3593-3610): DROP TABLE IF EXISTS is destructive for postgresql + sqlite packs.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "DROP DATABASE IF EXISTS foo;",
+    "expectedDecision": "deny",
+    "note": "DCG database_packs_block_drop_with_if_exists (src/packs/mod.rs ~3601): DROP DATABASE IF EXISTS is destructive.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "TRUNCATE TABLE foo RESTART IDENTITY;",
+    "expectedDecision": "deny",
+    "note": "DCG database_postgresql_blocks_truncate_restart_identity (src/packs/mod.rs ~3612-3619): TRUNCATE ... RESTART IDENTITY permanently deletes rows => blocked.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "rm -rf build",
+    "expectedDecision": "deny",
+    "note": "DCG pack_aware_quick_reject_rm_commands_not_rejected + full_flow_core_category_rm_commands_blocked (src/packs/mod.rs ~2880-2968): rm -rf <dir> is NOT quick-rejected and IS blocked by core.filesystem regardless of target dir (regression for git_safety_guard-nwu).",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "rm -rf src",
+    "expectedDecision": "deny",
+    "note": "Same DCG regression set (~2905): rm -rf src must be blocked, not quick-rejected.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "rm -rf node_modules",
+    "expectedDecision": "deny",
+    "note": "DCG full_flow_core_category_rm_commands_blocked (~2960): rm -rf node_modules blocked by core.filesystem with core keywords.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "cat .gitignore",
+    "expectedDecision": "allow",
+    "note": "DCG pack_aware_quick_reject_ignores_substring_matches (src/packs/mod.rs ~2812-2823): 'git' substring inside a filename does NOT make this destructive. (Under the contract's substring candidatePacks, core.git is still a CANDIDATE, but no git destructive/safe pattern fires => allow.)",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "echo digit",
+    "expectedDecision": "allow",
+    "note": "DCG pack_aware_quick_reject_ignores_substring_matches (~2820): 'git' inside 'digit' is not a real git command => allow.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "git status",
+    "expectedDecision": "allow",
+    "note": "DCG pack_aware_quick_reject_keeps_word_boundary_matches (~2829): git status is a real git command but a benign one; no destructive pattern => allow.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "ls -la",
+    "expectedDecision": "allow",
+    "note": "DCG pack_aware_quick_reject_empty_keywords_is_conservative (~2802): ls -la has no enabled keywords => quick-rejected => allow.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "echo \"$(op item delete \\\"Prod Secret\\\")\"",
+    "expectedDecision": "deny",
+    "note": "DCG split_command_segments_extracts_command_substitutions (src/packs/mod.rs ~3047-3053): the $(...) subshell `op item delete \"Prod Secret\"` is extracted as its own segment and evaluated; a destructive op-delete pattern fires inside it (segment extraction is normalize.ts's job; this asserts the engine sees the subshell as a scannable segment).",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "echo $(docker system prune -a --volumes)",
+    "expectedDecision": "deny",
+    "note": "DCG split_command_segments_extracts_command_substitutions (~3040-3046): the extracted subshell `docker system prune -a --volumes` is destructive even though the outer command is just echo.",
+    "module": "engine-matcher-registry-evaluate"
+  },
+  {
+    "input": "rm -rf /tmp/test",
+    "expectedDecision": "allow",
+    "note": "combined flags, temp-safe (DCG test_safe_rm_tmp)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -fr /tmp/test",
+    "expectedDecision": "allow",
+    "note": "fr order combined, temp-safe (test_safe_rm_variants)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f /tmp/test",
+    "expectedDecision": "allow",
+    "note": "separate flags, temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --recursive --force /tmp/test",
+    "expectedDecision": "allow",
+    "note": "long flags, temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /var/tmp/stuff",
+    "expectedDecision": "allow",
+    "note": "/var/tmp temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf $TMPDIR/junk",
+    "expectedDecision": "allow",
+    "note": "$TMPDIR temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf ${TMPDIR}/junk",
+    "expectedDecision": "allow",
+    "note": "braced ${TMPDIR} temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf \"$TMPDIR/foo\"",
+    "expectedDecision": "allow",
+    "note": "double-quoted $TMPDIR safe ONLY for combined flags (test_rm_parser_allows_tmpdir_quotes)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf \"${TMPDIR}/foo\"",
+    "expectedDecision": "allow",
+    "note": "double-quoted braced $TMPDIR safe for combined flags",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf '$TMPDIR/foo'",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "single-quoted is never temp-safe -> High",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f \"$TMPDIR/foo\"",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate",
+    "note": "double-quoted unsafe for separate style",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --recursive --force \"$TMPDIR/foo\"",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-long",
+    "note": "double-quoted unsafe for long style",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --force --recursive \"${TMPDIR}/foo\"",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-long",
+    "note": "long style, force/recursive order",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf ${TMPDIR_NOT}/junk",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "TMPDIR_NOT is not the temp var (test_tmpdir_brace_requires_exact_var_name)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "combined flags non-temp -> High (test_rm_rf_general_high)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate",
+    "note": "separate flags non-temp -> High",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -f -r ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate",
+    "note": "separate flags reversed order -> High",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --recursive --force ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-long",
+    "note": "long flags non-temp -> High",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --force --recursive ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-long",
+    "note": "long flags reversed order -> High",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "combined root -> Critical (test_rm_rf_root_critical)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "combined system dir -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf ~/",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "combined home -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf \"/\"",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "double-quoted root still Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf '/'",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "single-quoted root still Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf '/etc'",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "single-quoted system dir still Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf \\/",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "backslash-escaped root (\\/ -> /) still Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf \\~",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "backslash-escaped home (\\~ -> ~) still Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf $HOME",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "$HOME expands to home -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf \"${HOME}\"",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "quoted braced $HOME -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /tmp/cache /etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "any root/home path among args -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate-root-home",
+    "note": "separate flags root -> Critical (test_rm_separate_and_long_flag_root_is_critical)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -f -r /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate-root-home",
+    "note": "separate flags reversed, root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f \\/",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate-root-home",
+    "note": "separate flags, escaped root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --recursive --force /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-root-home",
+    "note": "long flags root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --force --recursive /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-root-home",
+    "note": "long flags reversed, root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --recursive --force $HOME",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-root-home",
+    "note": "long flags $HOME -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /tmp/../etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "parent traversal defeats temp-safe; leading / -> Critical (test_rm_parser_traversal_blocked)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /var/tmp/../etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "parent traversal under /var/tmp -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /tmp/foo > /tmp/log.txt 2>&1",
+    "expectedDecision": "allow",
+    "note": "trailing redirections skipped, temp-safe (test_rm_rf_tmp_with_trailing_redirections_is_safe)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /tmp/sigtest* 2>/dev/null",
+    "expectedDecision": "allow",
+    "note": "trailing 2>/dev/null skipped, temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /tmp/foo &>/dev/null",
+    "expectedDecision": "allow",
+    "note": "&> redirection skipped, temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f /tmp/foo 2>/dev/null",
+    "expectedDecision": "allow",
+    "note": "separate flags + trailing redir, temp-safe",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /etc 2>/dev/null",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "redirection skip must not mask /etc (Critical)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf /tmp/ok /etc 2>/dev/null",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "mixed temp + /etc with trailing redir -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf / 2>/dev/null",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "root with trailing redir -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "cp -al /tmp/a /tmp/b && rm -rf /tmp/b",
+    "expectedDecision": "allow",
+    "note": "compound: cp segment NoMatch, rm segment Allow, no sensitive propagation (test_rm_parser_handles_compound_segments / non_sensitive_propagation_then_delete_is_allowed)",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "echo ok && rm -rf ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "compound: deny segment wins",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -- -rf /tmp/safe",
+    "expectedDecision": "allow",
+    "note": "-- before flags: -rf treated as path, no recursive/force flags resolved -> NoMatch (no rule fires; engine default-allow). DCG RmParseDecision::NoMatch.",
+    "expectedRuleId": "",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf -- /tmp/safe",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "-- after flags sets saw_terminator -> temp-safe allow disabled -> High",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -rf -- /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "-- after flags, root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm -r -f -- /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate-root-home",
+    "note": "separate flags, -- terminator, root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rm --recursive --force -- /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-root-home",
+    "note": "long flags, -- terminator, root -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "cp -al /etc /tmp/x && rm -rf /tmp/x",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:cp-sensitive-then-delete",
+    "note": "sensitive cp archive into temp then forced delete -> Critical (sensitive_propagation_then_delete_blocks_critical); propagation overrides rm-parse Allow",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "cp --archive /etc/passwd /tmp/passwd && rm -fr /tmp/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:cp-sensitive-then-delete",
+    "note": "--archive form, fr delete order -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "sudo cp -a /home/user/.ssh /var/tmp/keys && rm --recursive --force /var/tmp/keys",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:cp-sensitive-then-delete",
+    "note": "sudo wrapper + /home source + /var/tmp dest + long-flag delete -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "ln -s /etc /tmp/x && rm -rf /tmp/x/.",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:ln-symlink-sensitive-then-delete",
+    "note": "symlink sensitive into temp then forced delete -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "ln -sf $HOME /tmp/home && rm -rf /tmp/home/.",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:ln-symlink-sensitive-then-delete",
+    "note": "ln -sf with $HOME source -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rsync -a /etc/ /tmp/dest/ && rm -rf /tmp/dest",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rsync-sensitive-then-delete",
+    "note": "rsync archive sensitive into temp then forced delete -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rsync --archive /home/user/ /var/tmp/home/ && rm -f -r /var/tmp/home",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rsync-sensitive-then-delete",
+    "note": "rsync --archive form, /home source, separate-flag delete -> Critical",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "cp -a /etc /tmp/x",
+    "expectedDecision": "allow",
+    "note": "propagation WITHOUT delete is not blocked (sensitive_propagation_without_delete_is_allowed). chain returns undefined -> engine default-allow.",
+    "expectedRuleId": "",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "ln -s /etc /tmp/x",
+    "expectedDecision": "allow",
+    "note": "ln symlink without later delete -> not blocked",
+    "expectedRuleId": "",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rsync -a /etc/ /tmp/dest/",
+    "expectedDecision": "allow",
+    "note": "rsync archive without later delete -> not blocked",
+    "expectedRuleId": "",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "cp --archive ./build /tmp/build && rm -fr /tmp/build",
+    "expectedDecision": "allow",
+    "note": "non-sensitive source (./build) -> no propagation match, rm temp-safe -> allow",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "rsync -a ./target/ /tmp/target/ && rm -rf /tmp/target",
+    "expectedDecision": "allow",
+    "note": "non-sensitive rsync source -> allow",
+    "module": "src/engine/rm-parser.ts"
+  },
+  {
+    "input": "git status",
+    "expectedDecision": "allow",
+    "note": "Tier1 no-trigger; extractHeredocBodies returns [] (no heredoc/inline body to rescan). From heredoc.rs no_trigger_on_safe_commands + no_content_on_safe_command.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "python -c 'import os'",
+    "expectedDecision": "allow",
+    "note": "Inline-script body extracted = ['import os'] (Python). Body itself is benign so engine allows; demonstrates extraction. From extracts_inline_script_single_quotes.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "bash -c \"echo hello\"",
+    "expectedDecision": "allow",
+    "note": "Inline-script body extracted = ['echo hello'] (Bash). From extracts_inline_script_double_quotes.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "python -I -c 'import os'",
+    "expectedDecision": "allow",
+    "note": "Intervening -I flag tolerated; body = ['import os']. From extracts_inline_script_with_intervening_flags.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "bash -lc 'echo hello'",
+    "expectedDecision": "allow",
+    "note": "Combined short-flag cluster -lc; body = ['echo hello']. From extracts_inline_script_with_combined_shell_flags.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "node -pe 'process.version'",
+    "expectedDecision": "allow",
+    "note": "node -pe combined flags; body = ['process.version']. From extracts_inline_script_with_combined_node_flags.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "perl -pi -e 'print 1'",
+    "expectedDecision": "allow",
+    "note": "Interleaved perl flags -pi -e; body = ['print 1']. From extracts_inline_script_with_interleaved_perl_flags.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "powershell -Command 'echo hi'",
+    "expectedDecision": "allow",
+    "note": "#125 Windows shape: -Command body extracted = ['echo hi'] (mapped Bash). From extracts_powershell_command_body.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "powershell.exe -Command \"echo hi\"",
+    "expectedDecision": "allow",
+    "note": "PowerShell .exe + double-quoted body = ['echo hi']. From extracts_powershell_exe_command_body_double_quotes.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "pwsh -c 'echo hi'",
+    "expectedDecision": "allow",
+    "note": "pwsh -c (abbrev of -Command) body = ['echo hi']. From extracts_pwsh_short_flag_body.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "python -c 'code1' && ruby -e 'code2'",
+    "expectedDecision": "allow",
+    "note": "Two inline scripts extracted in order = ['code1','code2']. From extracts_multiple_inline_scripts.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "python3.11 -c 'import os' && nodejs18 -e 'console.log(1)'",
+    "expectedDecision": "allow",
+    "note": "Versioned interpreters extract bodies = ['import os','console.log(1)']. From extracts_versioned_interpreter_scripts.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat <<< 'hello world'",
+    "expectedDecision": "allow",
+    "note": "Here-string body = ['hello world']. From extracts_here_string.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat << EOF\nline1\nline2\nEOF",
+    "expectedDecision": "allow",
+    "note": "Heredoc body = ['line1\\nline2'], delimiter EOF. From extracts_heredoc_basic.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "python3 <<EOF | cat\nimport shutil\nshutil.rmtree('/tmp/test')\nEOF",
+    "expectedDecision": "allow",
+    "note": "Trailing '| cat' on delimiter line skipped; body = [\"import shutil\\nshutil.rmtree('/tmp/test')\"]. From extracts_heredoc_ignores_trailing_tokens_on_delimiter_line. (Body would be rescanned for shutil.rmtree by language packs downstream.)",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat <<EOF\r\nline1\r\nEOF\r\n",
+    "expectedDecision": "allow",
+    "note": "CRLF normalized; body = ['line1']. From extracts_heredoc_with_crlf_line_endings.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat <<- EOF\n\tline1\n\tline2\nEOF",
+    "expectedDecision": "allow",
+    "note": "Tab-stripped heredoc; leading tabs removed; body = ['line1\\nline2']. From extracts_heredoc_tab_stripped.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat <<~ EOF\n    line1\n    line2\n    EOF",
+    "expectedDecision": "allow",
+    "note": "Indent-stripped (<<~) with indented terminator; common indent removed; body = ['line1\\nline2']. From extracts_heredoc_indent_stripped.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat << EOF\nEOF",
+    "expectedDecision": "allow",
+    "note": "Empty heredoc valid; body = ['']. From extracts_empty_heredoc.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat << -EOF\nbody line\n-EOF",
+    "expectedDecision": "allow",
+    "note": "Space before dash => delimiter is literal '-EOF' (Standard), not tab-stripped; body = ['body line']. From parses_dash_after_space_as_part_of_unquoted_delimiter.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat <<- 'EOF'\n\tgh repo delete\n\tEOF",
+    "expectedDecision": "allow",
+    "note": "#109: space after tab-strip dash + quoted delim still parses delim=EOF; body = ['gh repo delete']. From extracts_heredoc_tab_stripped_quoted_with_space_after_dash.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "cat << EOF\nunterminated content without closing delimiter",
+    "expectedDecision": "allow",
+    "note": "Unterminated heredoc => fail-open skip; extractHeredocBodies returns []. From tracks_unterminated_heredoc.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "git commit -m \"docs: example heredoc: cat <<EOF rm -rf / EOF\"",
+    "expectedDecision": "allow",
+    "note": "Heredoc syntax inside a quoted literal does NOT trigger Tier1; no body extracted. From heredoc_syntax_inside_quoted_literals_does_not_trigger.",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "echo \"$(cat <<EOF\nrm -rf /\nEOF)\"",
+    "expectedDecision": "allow",
+    "note": "<< inside $() is active even with outer double quotes => Tier1 triggers, heredoc body = ['rm -rf /'] surfaced for rescan. From heredoc_inside_command_substitution_with_outer_quotes_still_triggers (note: this module returns the body; the destructive 'rm -rf /' decision is the rm/filesystem pack's job).",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "bash <<SH\nrm -rf /important\nSH",
+    "expectedDecision": "allow",
+    "note": "Executing bash heredoc body is NOT masked here; body = ['rm -rf /important'] surfaced so the evaluator's rm/filesystem rules can fire. Masking decision is the evaluator's; from #136 mask_interpreter_source_body semantics (bash body left intact for raw-shell scan).",
+    "module": "src/engine/heredoc.ts"
+  },
+  {
+    "input": "git reset --hard",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:reset-hard",
+    "note": "critical => deny; DCG test_reset_hard_critical",
+    "module": "core-git"
+  },
+  {
+    "input": "git reset --hard HEAD",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:reset-hard",
+    "module": "core-git"
+  },
+  {
+    "input": "git reset --hard HEAD~1",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:reset-hard",
+    "module": "core-git"
+  },
+  {
+    "input": "git reset --hard origin/main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:reset-hard",
+    "module": "core-git"
+  },
+  {
+    "input": "git reset --merge",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:reset-merge",
+    "note": "high => deny",
+    "module": "core-git"
+  },
+  {
+    "input": "git clean -f",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:clean-force",
+    "note": "critical; DCG test_clean_force_critical",
+    "module": "core-git"
+  },
+  {
+    "input": "git clean -fd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:clean-force",
+    "module": "core-git"
+  },
+  {
+    "input": "git clean -xf",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:clean-force",
+    "module": "core-git"
+  },
+  {
+    "input": "git push --force",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-long",
+    "note": "critical; DCG test_push_force_critical",
+    "module": "core-git"
+  },
+  {
+    "input": "git push -f",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-short",
+    "note": "critical",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin main --force",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-long",
+    "module": "core-git"
+  },
+  {
+    "input": "git push --force origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-long",
+    "module": "core-git"
+  },
+  {
+    "input": "git push -uf origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-short",
+    "note": "combined short flag resolving to -f",
+    "module": "core-git"
+  },
+  {
+    "input": "git push -fv origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git push -fuv origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git push -vf origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin feature-f",
+    "expectedDecision": "allow",
+    "note": "branch name containing -f is NOT a force flag; DCG is_none",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin hotfix-fallback",
+    "expectedDecision": "allow",
+    "note": "branch name containing -f is NOT a force flag",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin feature--force",
+    "expectedDecision": "allow",
+    "note": "branch name containing --force must not trip push-force-long",
+    "module": "core-git"
+  },
+  {
+    "input": "git push --force-with-lease origin main",
+    "expectedDecision": "allow",
+    "note": "--force-with-lease is the SAFE alternative; (?![-a-z]) excludes it",
+    "module": "core-git"
+  },
+  {
+    "input": "git push --force-with-lease --force-if-includes origin main",
+    "expectedDecision": "allow",
+    "note": "both safer flags allowed",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin main && echo done --force",
+    "expectedDecision": "allow",
+    "note": "#124: force text in a separate non-push statement must not back-match the earlier push",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin main; echo --force",
+    "expectedDecision": "allow",
+    "note": "#124 boundary",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin main || echo --force",
+    "expectedDecision": "allow",
+    "note": "#124 boundary",
+    "module": "core-git"
+  },
+  {
+    "input": "git push origin main | tee log --force",
+    "expectedDecision": "allow",
+    "note": "#124 boundary",
+    "module": "core-git"
+  },
+  {
+    "input": "git fetch && git push --force origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-long",
+    "note": "a real force-push statement after a separator must still block",
+    "module": "core-git"
+  },
+  {
+    "input": "git fetch; git push -f origin main",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git fetch || git push --force",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:push-force-long",
+    "module": "core-git"
+  },
+  {
+    "input": "git stash clear",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:stash-clear",
+    "note": "critical; DCG test_stash_clear_critical",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout -- file.txt",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:checkout-discard",
+    "note": "high; DCG test_checkout_discard_high",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout -- .",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:checkout-discard",
+    "module": "core-git"
+  },
+  {
+    "input": "git restore file.txt",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:restore-worktree",
+    "note": "high; DCG test_restore_worktree_high",
+    "module": "core-git"
+  },
+  {
+    "input": "git restore --worktree file.txt",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.git:restore-worktree-explicit",
+    "note": "restore-worktree fires first in declaration order on this input",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -D feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "note": "medium => warn; DCG test_branch_force_medium",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch --force feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -f feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -Dr origin/feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -vD feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -fv feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -vdf feature",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:branch-force-delete",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -d merged-feature",
+    "expectedDecision": "allow",
+    "note": "non-forcing -d must not block",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -vd merged-feature",
+    "expectedDecision": "allow",
+    "note": "non-forcing -vd must not block",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch -a",
+    "expectedDecision": "allow",
+    "note": "listing branches",
+    "module": "core-git"
+  },
+  {
+    "input": "git stash drop",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:stash-drop",
+    "note": "medium => warn; DCG test_stash_drop_medium",
+    "module": "core-git"
+  },
+  {
+    "input": "git stash drop stash@{0}",
+    "expectedDecision": "warn",
+    "expectedRuleId": "core.git:stash-drop",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout -b feature",
+    "expectedDecision": "allow",
+    "note": "safe: checkout-new-branch",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout -b feature/new-thing",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout -b fix-123",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout --orphan gh-pages",
+    "expectedDecision": "allow",
+    "note": "safe: checkout-orphan",
+    "module": "core-git"
+  },
+  {
+    "input": "git checkout --orphan new-root",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git restore --staged file.txt",
+    "expectedDecision": "allow",
+    "note": "safe: restore-staged-long",
+    "module": "core-git"
+  },
+  {
+    "input": "git restore -S file.txt",
+    "expectedDecision": "allow",
+    "note": "safe: restore-staged-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git clean -n",
+    "expectedDecision": "allow",
+    "note": "safe: clean-dry-run-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git clean -dn",
+    "expectedDecision": "allow",
+    "note": "safe: clean-dry-run-short",
+    "module": "core-git"
+  },
+  {
+    "input": "git clean --dry-run",
+    "expectedDecision": "allow",
+    "note": "safe: clean-dry-run-long",
+    "module": "core-git"
+  },
+  {
+    "input": "git status",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git log",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git log --oneline",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git diff",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git diff --cached",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git show HEAD",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git branch",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git remote -v",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git fetch",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git pull",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git push",
+    "expectedDecision": "allow",
+    "note": "push without force",
+    "module": "core-git"
+  },
+  {
+    "input": "git add .",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "git commit -m 'message'",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "ls -la",
+    "expectedDecision": "allow",
+    "note": "no git keyword",
+    "module": "core-git"
+  },
+  {
+    "input": "cargo build",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "npm install",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "docker run",
+    "expectedDecision": "allow",
+    "module": "core-git"
+  },
+  {
+    "input": "cat .gitignore",
+    "expectedDecision": "allow",
+    "note": "'git' substring inside .gitignore must NOT trigger; DCG test_specificity_substring_not_matched",
+    "module": "core-git"
+  },
+  {
+    "input": "echo digit",
+    "expectedDecision": "allow",
+    "note": "'git' substring inside digit must NOT trigger",
+    "module": "core-git"
+  },
+  {
+    "input": "find / -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "note": "rm -rf bypass via find -delete on root; DCG find_delete_blocks_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find /etc -name '*.conf' -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "note": "predicate before -delete still critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find ~ -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find $HOME -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find . -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-general",
+    "note": "DCG find_delete_blocks_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find /data -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-general",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find /tmp -delete",
+    "expectedDecision": "allow",
+    "note": "temp safe-pattern find-delete-tmp; DCG find_delete_under_tmp_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find /var/tmp/dir -type f -delete",
+    "expectedDecision": "allow",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find ${TMPDIR}/work -delete",
+    "expectedDecision": "allow",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find /tmp/foo /etc -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "note": "secondary sensitive path defeats temp safe; DCG find_delete_with_secondary_sensitive_path_still_blocks",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find . -name '*.rs'",
+    "expectedDecision": "allow",
+    "note": "no -delete action; read-only",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "find . -name -delete-this-not-a-flag",
+    "expectedDecision": "allow",
+    "note": "-delete substring trap; terminator (?:\\s|$|[;&|)\\n]) prevents FP",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo done; find /etc -delete",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "note": "\\bfind\\b fires in compound",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "(find /etc -delete)",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:find-delete-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo done; find /tmp -delete",
+    "expectedDecision": "deny",
+    "note": "whole-command-anchored safe does NOT rescue compound temp find; DCG find_temp_compound_blocks_conservatively",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:unlink-root-home",
+    "note": "DCG unlink_blocks_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink ~/.ssh/id_ed25519",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:unlink-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink ./important.db",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:unlink-general",
+    "note": "DCG unlink_blocks_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink /tmp/scratch",
+    "expectedDecision": "allow",
+    "note": "DCG unlink_under_tmp_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink --help",
+    "expectedDecision": "allow",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink /tmp/../etc/passwd",
+    "expectedDecision": "deny",
+    "note": "traversal defeats temp safe; DCG unlink_path_traversal_in_tmp_is_blocked",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo unlink",
+    "expectedDecision": "allow",
+    "note": "substring trap, no \\S arg",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "unlink",
+    "expectedDecision": "allow",
+    "note": "regex requires \\bunlink\\s+\\S",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate -s 0 /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:truncate-zero-root-home",
+    "note": "DCG truncate_blocks_zero_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate -s -100 /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:truncate-zero-root-home",
+    "note": "shrink form",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate --size=0 /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:truncate-zero-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate -s 0 ./important.db",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:truncate-zero-general",
+    "note": "DCG truncate_blocks_zero_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate -s 0 /tmp/scratch.bin",
+    "expectedDecision": "allow",
+    "note": "DCG truncate_under_tmp_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate -s +1024 ./output.bin",
+    "expectedDecision": "allow",
+    "note": "grow is non-destructive; DCG truncate_grow_is_allowed_anywhere",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "truncate -r ref.bin out.bin",
+    "expectedDecision": "allow",
+    "note": "--reference: no destructive size operand",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "shred -u /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:shred-root-home",
+    "note": "DCG shred_blocks_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "shred /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:shred-root-home",
+    "note": "overwrite without -u still critical on sensitive path",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "shred -u ./secrets.txt",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:shred-general",
+    "note": "DCG shred_blocks_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "shred -u /tmp/scratch.bin",
+    "expectedDecision": "allow",
+    "note": "DCG shred_under_tmp_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "shred --help",
+    "expectedDecision": "allow",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo shred",
+    "expectedDecision": "allow",
+    "note": "substring trap",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar --remove-files -cf out.tar /etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:tar-remove-files-root-home",
+    "note": "DCG tar_remove_files_blocks_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar -cf out.tar /etc --remove-files",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:tar-remove-files-root-home",
+    "note": "source-before-flag arm",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar --remove-files -cf /dev/null /etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:tar-remove-files-root-home",
+    "note": "discarded-archive pure delete",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar --remove-files -cf out.tar ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:tar-remove-files-general",
+    "note": "DCG tar_remove_files_blocks_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar --remove-files -cf out.tar /tmp/scratch",
+    "expectedDecision": "allow",
+    "note": "DCG tar_remove_files_under_tmp_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar -cf out.tar /etc",
+    "expectedDecision": "allow",
+    "note": "no --remove-files = pure archive; DCG tar_without_remove_files_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "grep --remove-files docs/",
+    "expectedDecision": "allow",
+    "note": "flag present but no tar; substring trap",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "tar --remove-files -cf out.tar /tmp/foo /etc/bar",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:tar-remove-files-root-home",
+    "note": "mixed sources; DCG tar_remove_files_mixed_sources_blocks_via_general",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd if=/dev/zero of=/etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:dd-overwrite-root-home",
+    "note": "DCG dd_overwrite_blocks_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd of=/etc/passwd if=/dev/zero",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:dd-overwrite-root-home",
+    "note": "of= first operand order",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd of=/etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:dd-overwrite-root-home",
+    "note": "no if= still destroys content",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd if=/dev/zero of=./important.db",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:dd-overwrite-general",
+    "note": "DCG dd_overwrite_blocks_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd if=/etc/passwd of=/dev/null",
+    "expectedDecision": "allow",
+    "note": "read-only, of= /dev excluded; DCG dd_to_dev_null_zero_full_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd if=/dev/zero of=/dev/sda",
+    "expectedDecision": "allow",
+    "note": "device-level dd is system.disk scope; DCG dd_to_device_falls_through_to_system_disk",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd if=/etc/passwd of=/tmp/passwd.bak",
+    "expectedDecision": "allow",
+    "note": "backup: read sensitive, write tmp; DCG dd_backup_to_tmp_from_sensitive_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "dd if=/etc/passwd",
+    "expectedDecision": "allow",
+    "note": "no of= operand",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo address",
+    "expectedDecision": "allow",
+    "note": "\\bdd\\b substring trap",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv /etc /tmp/x",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:mv-sensitive-source-root-home",
+    "note": "cross-segment bypass first half; DCG mv_sensitive_source_blocks_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv /etc /dev/null",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:mv-sensitive-source-root-home",
+    "note": "silent destruction",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv ./build/foo /etc/local-config.bak",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:mv-sensitive-source-root-home",
+    "note": "sensitive DESTINATION blocks",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv /etc/hosts /etc/hosts.bak",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:mv-sensitive-source-root-home",
+    "note": "in-place /etc rename blocks (bead v1 decision)",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv $'/etc' /tmp/x",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:mv-sensitive-source-root-home",
+    "note": "ANSI-C quoting bypass closed; DCG mv_ansi_c_and_locale_quoted_sources_block",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv ./old.txt ./new.txt",
+    "expectedDecision": "allow",
+    "note": "no sensitive path; DCG mv_no_sensitive_path_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "mv /var/tmp/foo /var/tmp/bar",
+    "expectedDecision": "allow",
+    "note": "/var sensitive but mv-var-tmp safe rescues; DCG mv_under_tmp_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo amv-tools",
+    "expectedDecision": "allow",
+    "note": "\\bmv\\b substring trap",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "cp -al /etc /tmp/x && rm -rf /tmp/x",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:cp-sensitive-then-delete",
+    "note": "DCG sensitive_propagation_then_delete_blocks_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "ln -s /etc /tmp/x && rm -rf /tmp/x/.",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:ln-symlink-sensitive-then-delete",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rsync -a /etc/ /tmp/dest/ && rm -rf /tmp/dest",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rsync-sensitive-then-delete",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "cp -a /etc /tmp/x",
+    "expectedDecision": "allow",
+    "note": "propagation without the delete half; DCG sensitive_propagation_without_delete_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "cp -al /tmp/a /tmp/b && rm -rf /tmp/b",
+    "expectedDecision": "allow",
+    "note": "non-sensitive temp propagation+delete; DCG non_sensitive_propagation_then_delete_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "> /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "note": "DCG redirect_truncate_blocks_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": ": > /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "note": "null builtin + redirect",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo x 2>| /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "note": "numbered fd force-overwrite",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "&> /etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo data>/etc/passwd",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "note": "glued operator; DCG redirect_glued_operator_blocks_destructive",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "> $'/etc/passwd'",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "note": "ANSI-C quoted path; DCG redirect_ansi_c_and_locale_quoted_paths_block",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "> /dev/sda",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:redirect-truncate-root-home",
+    "note": "device write still blocks; DCG redirect_to_dev_devices_still_blocks",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo line >> /etc/passwd",
+    "expectedDecision": "allow",
+    "note": "append non-destructive; lookbehind (?<![<>]); DCG redirect_append_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "make > build.log",
+    "expectedDecision": "allow",
+    "note": "non-sensitive target, no -general tier; DCG redirect_truncate_to_non_sensitive_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "command > /dev/null",
+    "expectedDecision": "allow",
+    "note": "/dev/null sink carve-out; DCG redirect_to_dev_null_zero_full_is_allowed_universally",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "echo x 2>&1",
+    "expectedDecision": "allow",
+    "note": "fd-to-fd, not file truncation; DCG redirect_to_fd_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "cat < /etc/passwd",
+    "expectedDecision": "allow",
+    "note": "read redirect does not truncate; DCG redirect_read_is_allowed",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "DCG test_rm_rf_root_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf \"/\"",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "quoted root still blocks",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf $HOME",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -r -f /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate-root-home",
+    "note": "DCG test_rm_separate_and_long_flag_root_is_critical",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm --recursive --force /",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-recursive-force-root-home",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf \\/",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "backslash-escaped root",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "DCG test_rm_rf_general_high",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -r -f ./build",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-r-f-separate",
+    "note": "non-root keeps High",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf /tmp/test",
+    "expectedDecision": "allow",
+    "note": "DCG test_safe_rm_tmp",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf /tmp/foo 2>/dev/null",
+    "expectedDecision": "allow",
+    "note": "trailing redirection must not flip safe temp rm to root-home; DCG test_rm_rf_tmp_with_trailing_redirections_is_safe",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf /etc 2>/dev/null",
+    "expectedDecision": "deny",
+    "note": "dangerous path wins over redirection skip",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf ${TMPDIR_NOT}/junk",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-general",
+    "note": "brace requires exact TMPDIR; DCG test_tmpdir_brace_requires_exact_var_name",
+    "module": "core.filesystem"
+  },
+  {
+    "input": "rm -rf /tmp/../etc",
+    "expectedDecision": "deny",
+    "expectedRuleId": "core.filesystem:rm-rf-root-home",
+    "note": "traversal defeats temp safe; DCG test_path_traversal_blocked / test_rm_parser_traversal_blocked",
+    "module": "core.filesystem"
+  }
+]

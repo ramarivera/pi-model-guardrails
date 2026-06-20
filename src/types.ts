@@ -225,3 +225,103 @@ export interface ToolCall {
   toolName: string;
   input: Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 deterministic-guard runtime config.
+//
+// `loadGuardConfig` (src/config.ts) deep-merges layered JSON(C) into the runtime
+// objects the deterministic guard actually consumes: a built Registry, a
+// resolved PolicyConfig, a MachineConfig, engine EvaluateOptions, telemetry, and
+// optional model filters. These are RUNTIME objects (compiled RegExp in the
+// registry, resolved policy), distinct from the on-disk wire shape below.
+// ---------------------------------------------------------------------------
+
+/**
+ * The wire (on-disk) shape of the Phase 2 guardrails config. Everything is
+ * optional; missing fields fall back to defaultPolicyConfig()/defaultMachineConfig()
+ * and the default core packs. Kept hand-validated (no zod) to avoid new deps.
+ */
+export interface GuardConfigFile {
+  /** Engine evaluation tunables (input cap, per-match budget). */
+  evaluate?: {
+    inputMaxLength?: number;
+    perMatchBudgetMs?: number;
+  };
+  /** Policy engine config (defaultMode/inviolable/rules/constraints/allowlist). */
+  policy?: PolicyConfigFile;
+  /** State-machine tunables (streaks, cooldown, gating). */
+  machine?: Partial<MachineConfigFile>;
+  /** Local observability/telemetry config (shared with the legacy loader shape). */
+  observability?: GuardrailsObservabilityConfig;
+  /** Phase 3 LLM degraded-mode grader config. */
+  grader?: GraderConfigFile;
+  /** Models that should be guardrailed (reserved for the future LLM layer). */
+  modelWhitelist?: string[];
+  /** Models that should NOT be guardrailed (reserved for the future LLM layer). */
+  modelBlacklist?: string[];
+}
+
+/**
+ * Wire shape for the Phase 3 grader. Everything is optional; missing fields fall
+ * back to the documented defaults in defaultGraderConfig(). Secrets are read from
+ * env (apiKeyEnv / baseUrlEnv) — never stored inline.
+ */
+export interface GraderConfigFile {
+  /** Whether degraded-mode grading runs at all. Default true. */
+  enabled?: boolean;
+  /** Grader model id (Pi registry id or "provider/model-id"). Default "gemini-3.5-flash". */
+  model?: string;
+  /** Optional fallback model id when the primary isn't in the registry. */
+  fallbackModel?: string;
+  /** Optional OpenAI-compatible base URL override. */
+  baseUrl?: string;
+  /** Env var name to read the base URL from (overrides baseUrl when set). */
+  baseUrlEnv?: string;
+  /** Env var name to read the api key from. Never store the key inline. */
+  apiKeyEnv?: string;
+  /** Hard per-attempt wall-clock budget in ms. Default 8000. */
+  timeoutMs?: number;
+  /** Max tokens for the verdict completion. Default 512. */
+  maxTokens?: number;
+  /** Bounded retries before fail-toward-gate. Default 1. */
+  maxRetries?: number;
+  /** Sampling temperature. Default 0.1. */
+  temperature?: number;
+  /** Whether to cache verdicts by (tool, args, constraints, epoch). Default true. */
+  cache?: boolean;
+}
+
+/** Resolved runtime grader config (env already read, defaults applied). */
+export interface GraderConfig {
+  enabled: boolean;
+  model: string;
+  fallbackModel?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  timeoutMs: number;
+  maxTokens: number;
+  maxRetries: number;
+  temperature: number;
+  cache: boolean;
+}
+
+/** Wire shape for the policy engine config (maps 1:1 onto PolicyConfig). */
+export interface PolicyConfigFile {
+  defaultMode?: "deny" | "warn" | "log" | "allow";
+  observeUntil?: number;
+  inviolable?: string[];
+  rules?: Record<string, "deny" | "warn" | "log" | "allow">;
+  constraints?: unknown[];
+  allowlist?: unknown[];
+}
+
+/** Wire shape for the state machine config (maps 1:1 onto MachineConfig). */
+export interface MachineConfigFile {
+  watchCleanStreak: number;
+  gatedCleanStreak: number;
+  recoveringWatermark: number;
+  cooldownTurns: number;
+  gateOnlyMutatingInWatch: boolean;
+  nonTrivialOnly: boolean;
+  haltRequiresHumanAck: boolean;
+}
