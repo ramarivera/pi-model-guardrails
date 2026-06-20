@@ -213,6 +213,62 @@ test("non-bash tools pass through (allow) in Phase 2", async () => {
   assert.equal(result, undefined);
 });
 
+async function fireTool(
+  pi: FakePi,
+  ctx: FakeCtx,
+  toolName: string,
+  input: Record<string, unknown>,
+): Promise<{ block?: boolean; reason?: string } | undefined> {
+  const handler = pi.handlers.get("tool_call");
+  assert.ok(handler);
+  return (await handler(
+    { type: "tool_call", toolCallId: "call_nb", toolName, input },
+    ctx,
+  )) as { block?: boolean; reason?: string } | undefined;
+}
+
+test("non-bash tools are NOT exempt from HALTED/degraded (coderabbit critical)", async () => {
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  const ctx = createFakeCtx(cwd, pi.entries);
+  await startSession(pi, ctx);
+
+  // HALT the session (critical command).
+  await fireToolCall(pi, ctx, "git reset --hard HEAD~1");
+
+  // While HALTED, EVERY non-bash tool is blocked — including read-only.
+  const w = await fireTool(pi, ctx, "write", { path: "x", content: "y" });
+  assert.ok(w?.block, "write blocked while HALTED");
+  const r = await fireTool(pi, ctx, "read", { path: "/etc/hosts" });
+  assert.ok(r?.block, "even read blocked while HALTED (terminal)");
+  assert.match(r.reason ?? "", /HALTED/);
+});
+
+test("degraded (GATED) holds mutating non-bash but allows read-only", async () => {
+  __setCompleterOverrideForTest(stubCompleter(DIRTY_VERDICT));
+  try {
+    const pi = createFakePi();
+    extension(pi as never);
+    const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    const ctx = createFakeCtx(cwd, pi.entries);
+    await startSession(pi, ctx);
+
+    // Arm GATED via a high-severity (non-critical) block.
+    const armed = await fireToolCall(pi, ctx, "git restore file.txt");
+    assert.ok(armed?.block, "git restore arms GATED");
+
+    // Mutating non-bash (write/edit) is held in degraded mode.
+    const w = await fireTool(pi, ctx, "write", { path: "x", content: "y" });
+    assert.ok(w?.block, "write held while GATED");
+    // Read-only non-bash still passes (trivial, no mutation).
+    const r = await fireTool(pi, ctx, "read", { path: "/etc/hosts" });
+    assert.equal(r, undefined, "read passes while GATED");
+  } finally {
+    __setCompleterOverrideForTest(undefined);
+  }
+});
+
 test("persists state to a session entry that survives resume", async () => {
   const pi = createFakePi();
   extension(pi as never);

@@ -133,6 +133,21 @@ test("reset --hard is critical (reset-hard)", () => {
   }
 });
 
+test("reset --merge with intervening flags blocks (reset-merge FN fix)", () => {
+  // coderabbit: `git reset -q --merge` / `--quiet --merge` bypassed the rule
+  // because there was no flag-walker between `reset` and `--merge`.
+  for (const cmd of [
+    "git reset --merge",
+    "git reset -q --merge",
+    "git reset --quiet --merge HEAD",
+    "git -c core.pager=cat reset -q --merge",
+  ]) {
+    const r = check(cmd);
+    assert.ok(r, `${cmd} must block`);
+    assert.equal(r.ruleName, "reset-merge", cmd);
+  }
+});
+
 test("clean -f/--force is critical (clean-force)", () => {
   const m = check("git clean -f");
   assert.ok(m, "git clean -f must block");
