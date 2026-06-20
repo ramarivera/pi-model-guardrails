@@ -22,6 +22,7 @@ import { resolveIndirection } from "./indirection.ts";
 import { matchPack } from "./matcher.ts";
 import { normalizeCommand, stripWrapperPrefixes } from "./normalize.ts";
 import type { Registry } from "./registry.ts";
+import { sanitizeForPatternMatching } from "./sanitize.ts";
 import type {
   DecisionMode,
   EngineDecision,
@@ -164,14 +165,25 @@ function evaluateInner(
   resolved: Required<EvaluateOptions>,
   skipResolution: boolean,
 ): EngineDecision {
+  // (2.5) Data-span masking. Blank known-data spans (commit messages + other
+  // registry data-flag values, echo/printf args, `# comments`, arithmetic
+  // `$((…))`) BEFORE matching, so a dangerous substring that merely SITS in a
+  // data position (`git commit -m "...rm -rf /..."`) cannot false-positive. The
+  // sanitizer never blanks shell-executed text (`$(cmd)`, backticks), and is a
+  // no-op (returns the original string) for commands with no data-registry word
+  // and no `#`. Everything downstream — normalize, the rm parser, every pack,
+  // AND the indirection pass — runs against this sanitized view so masking
+  // cannot be re-defeated by, e.g., indirection inside a masked message.
+  const scanCommand = sanitizeForPatternMatching(command);
+
   // (3) Normalize into classified segments. Also compute the wrapper-stripped
   // whole command (DCG's `command_for_packs = normalize_command(strip_wrapper_
   // prefixes(command))`) — this is what the matchers run against, so a leading
   // sudo/doas/env/time wrapper can't defeat the `^rm`-anchored safe rescues
   // while the unanchored destructive rules still fire (the wrapper-prefixed
   // false-positive family).
-  const segments = normalizeCommand(command);
-  const strippedCommand = stripWrapperPrefixes(command);
+  const segments = normalizeCommand(scanCommand);
+  const strippedCommand = stripWrapperPrefixes(scanCommand);
 
   // (4) Quick-reject prefilter. Scan BOTH the raw command AND the normalized
   // segment text. This ports DCG's `contains_shell_word_obfuscation` escape
@@ -182,7 +194,9 @@ function evaluateInner(
   // the prefilter closes that bypass.
   const normalizedText = segments.map((s) => s.normalized).join("\n");
   const prefilterText =
-    normalizedText === command ? command : `${command}\n${normalizedText}`;
+    normalizedText === scanCommand
+      ? scanCommand
+      : `${scanCommand}\n${normalizedText}`;
   const candidates = registry.candidatePacks(prefilterText);
   // NOTE: do NOT early-return on an empty candidate set. The literal prefilter
   // scans raw + normalized text, but normalization does NOT substitute shell
@@ -217,8 +231,8 @@ function evaluateInner(
   // recursion to a single re-entry). A stricter result wins; the attribution is
   // annotated so the policy/state layers can see it came via indirection.
   if (!skipResolution) {
-    const indirect = resolveIndirection(command);
-    if (indirect && indirect.expanded !== command) {
+    const indirect = resolveIndirection(scanCommand);
+    if (indirect && indirect.expanded !== scanCommand) {
       const alt = evaluateInner(indirect.expanded, registry, resolved, true);
       if (alt.blocked && (best === undefined || isStricter(alt, best))) {
         return annotateIndirection(alt, indirect.notes);

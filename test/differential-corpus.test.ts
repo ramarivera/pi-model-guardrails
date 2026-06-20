@@ -71,13 +71,11 @@ const DECISION_EXCLUSIONS = new Map<string, string>([
   ["DROP TABLE IF EXISTS foo;", "pending pack: database.*"],
   ["DROP DATABASE IF EXISTS foo;", "pending pack: database.*"],
   ["TRUNCATE TABLE foo RESTART IDENTITY;", "pending pack: database.*"],
-  // 2. KNOWN_MASKING_GAPS — real false positives, fix via data-span masking port.
-  // (The env-assignment case is now fixed: wrapper-strip removes `env FOO=...`.)
-  ["echo $((rm -rf /))", "masking gap: $((arith)) is not a command context"],
-  [
-    'git commit -m "docs: example heredoc: cat <<EOF rm -rf / EOF"',
-    "masking gap: dangerous string inside a quoted -m argument",
-  ],
+  // 2. KNOWN_MASKING_GAPS — FIXED by the data-span masking port (src/engine/
+  // sanitize.ts): `echo $((arith))` (arithmetic, echo all-args-data) and a
+  // dangerous string inside a quoted `git -m` value are now masked before
+  // matching, so both decide `allow` like DCG. The two former exclusions were
+  // removed once they passed (the test flags stale exclusions).
   // 3. HEREDOC_ARTIFACTS — heredoc not wired into evaluate; module-perspective cases
   ['echo "$(cat <<EOF\nrm -rf /\nEOF)"', "heredoc not wired into evaluate yet"],
   ["bash <<SH\nrm -rf /important\nSH", "heredoc not wired into evaluate yet"],
