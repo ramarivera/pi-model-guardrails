@@ -177,9 +177,15 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
       if (!isToolCallEventType("bash", event)) {
         const tn = toolNameOf(event);
         if (state.state === "HALTED") {
+          const violation = state.violatedConstraintId
+            ? ` Violation: ${state.violatedConstraintId}.`
+            : "";
+          const armedReason = state.armedReason
+            ? ` Reason: ${state.armedReason}`
+            : "";
           const reason =
-            "Session is HALTED on an inviolable constraint. All tool calls are " +
-            "blocked until a human clears it (/guardrails-clear-halt).";
+            `Session is HALTED on an inviolable constraint.${violation}${armedReason} ` +
+            "All tool calls are blocked until a human clears it (/guardrails-clear-halt).";
           await telemetry.logEvent("tool_call_blocked_non_bash", {
             toolName: tn,
             state: state.state,
@@ -258,9 +264,15 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
       // the call must be BLOCKED (the gate is enforcing now, not advisory).
       let graded = false;
 
-      // Phase 3 enforcement: an armed, clean call is "gate-required". RUN THE
-      // GRADE and re-decide with the verdict so the machine ENFORCES the gate.
-      if (outcome.action === "gate-required") {
+      // Phase 3 enforcement: an armed, clean call is "gate-required". When the
+      // grader is enabled, RUN THE GRADE and re-decide with the verdict so the
+      // machine ENFORCES the gate. When the grader is intentionally disabled by
+      // config, preserve Phase 2 behavior: deterministic-clean gated calls are
+      // allowed through while the state remains armed.
+      if (
+        outcome.action === "gate-required" &&
+        (graderConfig?.enabled ?? true)
+      ) {
         if (graderUnavailable || completer === undefined) {
           // FAIL CLOSED: grading is required but unavailable. Block the call
           // rather than waving a degraded session through ungraded.
@@ -417,9 +429,14 @@ export default function guardrailsExtension(pi: ExtensionAPI): void {
           return;
         }
 
-        const reason = state.armedReason
-          ? `\n\nViolated: ${state.armedReason}`
-          : "";
+        const reasonParts = [
+          state.violatedConstraintId
+            ? `Violation: ${state.violatedConstraintId}`
+            : undefined,
+          state.armedReason ? `Reason: ${state.armedReason}` : undefined,
+        ].filter(Boolean);
+        const reason =
+          reasonParts.length > 0 ? `\n\n${reasonParts.join("\n")}` : "";
         const confirmed = await ctx.ui.confirm(
           "Clear guardrails HALT?",
           "This session was HALTED on an inviolable constraint. Clearing it " +
@@ -473,8 +490,9 @@ function callMeta(toolName: string): CallMeta {
  * complete()) — the only verified way a Pi extension runs its own completion.
  *
  * Returns undefined when grading is disabled OR no completer can be built (no
- * model id / model not in registry). The caller treats undefined as
- * "grader unavailable" and fails closed for gated calls.
+ * model id / model not in registry). The caller only treats undefined as fatal
+ * when grading is enabled; disabled grading deliberately preserves Phase 2
+ * deterministic-clean passthrough behavior.
  */
 function buildCompleter(
   ctx: ExtensionContext,
@@ -489,7 +507,7 @@ function buildCompleter(
     | ExtensionContext["modelRegistry"]
     | undefined;
   // No model registry on this ctx (e.g. a minimal/test harness) => no completer.
-  // The caller treats undefined as "grader unavailable" and fails closed.
+  // If grading is enabled, the caller treats this as unavailable and fails closed.
   if (!registry || typeof registry.getAll !== "function") return undefined;
 
   const findModel = (id: string | undefined): GraderModel | undefined => {
@@ -671,10 +689,13 @@ function isPersistedState(value: unknown): value is PersistedState {
 /** The steering note injected each turn while armed. */
 function steeringNote(state: PersistedState): string {
   const mode = state.state === "HALTED" ? "HALTED" : "degraded";
+  const violation = state.violatedConstraintId
+    ? ` Violation: ${state.violatedConstraintId}.`
+    : "";
   const reason = state.armedReason ? ` Reason: ${state.armedReason}` : "";
   if (state.state === "HALTED") {
     return (
-      `[model-guardrails] This session is HALTED on an inviolable constraint.${reason} ` +
+      `[model-guardrails] This session is HALTED on an inviolable constraint.${violation}${reason} ` +
       "Stop attempting destructive actions. The halt cannot be cleared by any " +
       "tool call — a human must acknowledge it out-of-band before work continues."
     );

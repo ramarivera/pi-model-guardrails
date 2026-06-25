@@ -29,7 +29,9 @@ export interface DeterministicSignal {
   blocked: boolean;
   severity?: Severity;
   ruleId?: string;
+  constraintId?: string;
   reason?: string;
+  requiredBehavior?: string;
   inviolable: boolean;
   allowlistable: boolean;
   warn: boolean;

@@ -1,6 +1,6 @@
 {
   "name": "@ramarivera/pi-model-guardrails",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Deterministic destructive-command guard + inviolable-constraint policy engine and deviation state machine for the Pi coding agent",
   "type": "module",
   "license": "MIT",

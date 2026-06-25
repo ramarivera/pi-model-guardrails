@@ -162,6 +162,13 @@ test("blocks a critical command (git reset --hard)", async () => {
     typeof result.reason === "string" && result.reason.length > 0,
     "the block reason reaches the model",
   );
+  assert.match(result.reason, /core\.git:reset-hard/);
+  assert.match(result.reason, /git reset --hard destroys uncommitted changes/);
+  assert.doesNotMatch(
+    result.reason,
+    /^An inviolable constraint was violated\. Stop\./,
+    "halt reason must name the concrete violation, not only generic boilerplate",
+  );
 });
 
 test("does not block a clean read-only command (ls -la)", async () => {
@@ -330,12 +337,25 @@ async function gateTheSession(pi: FakePi, ctx: FakeCtx): Promise<void> {
   assert.ok(result?.block, "git restore should block and arm GATED");
 }
 
+async function writeGuardrailsConfig(
+  cwd: string,
+  config: Record<string, unknown>,
+): Promise<void> {
+  await mkdir(join(cwd, ".pi"), { recursive: true });
+  await writeFile(
+    join(cwd, ".pi/guardrails.json"),
+    JSON.stringify(config),
+    "utf8",
+  );
+}
+
 test("Phase 3: a GATED clean call WITH a compliant grader advances recovery", async () => {
   __setCompleterOverrideForTest(stubCompleter(COMPLIANT_VERDICT));
   try {
     const pi = createFakePi();
     extension(pi as never);
     const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    await writeGuardrailsConfig(cwd, { grader: { enabled: true } });
     const ctx = createFakeCtx(cwd, pi.entries);
     await startSession(pi, ctx);
 
@@ -370,6 +390,7 @@ test("Phase 3: a GATED clean call WITH a non-compliant grader stays blocked/gate
     const pi = createFakePi();
     extension(pi as never);
     const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    await writeGuardrailsConfig(cwd, { grader: { enabled: true } });
     const ctx = createFakeCtx(cwd, pi.entries);
     await startSession(pi, ctx);
 
@@ -399,6 +420,7 @@ test("Phase 3: graderUnavailable FAILS CLOSED — gated clean call is blocked", 
   const pi = createFakePi();
   extension(pi as never);
   const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  await writeGuardrailsConfig(cwd, { grader: { enabled: true } });
   const ctx = createFakeCtx(cwd, pi.entries);
   await startSession(pi, ctx);
 
@@ -417,12 +439,32 @@ test("Phase 3: graderUnavailable FAILS CLOSED — gated clean call is blocked", 
   assert.match(held.reason ?? "", /grader unavailable/i);
 });
 
+test("disabled grader falls back to Phase 2 behavior for a GATED clean shell call", async () => {
+  __setCompleterOverrideForTest(undefined);
+  const pi = createFakePi();
+  extension(pi as never);
+  const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+  await writeGuardrailsConfig(cwd, { grader: { enabled: false } });
+  const ctx = createFakeCtx(cwd, pi.entries);
+  await startSession(pi, ctx);
+
+  await gateTheSession(pi, ctx);
+
+  const clean = await fireToolCall(pi, ctx, "echo hello world");
+  assert.equal(
+    clean,
+    undefined,
+    "disabled grader should not fail-close a deterministic-clean GATED command",
+  );
+});
+
 test("Phase 3: full recovery — enough compliant grades clear the gate to COMPLIANT", async () => {
   __setCompleterOverrideForTest(stubCompleter(COMPLIANT_VERDICT));
   try {
     const pi = createFakePi();
     extension(pi as never);
     const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    await writeGuardrailsConfig(cwd, { grader: { enabled: true } });
     const ctx = createFakeCtx(cwd, pi.entries);
     await startSession(pi, ctx);
 
@@ -465,6 +507,7 @@ test("Phase 3: the grader cannot rescue a deterministic block (dangerous call st
     const pi = createFakePi();
     extension(pi as never);
     const cwd = await mkdtemp(join(tmpdir(), "pi-guardrails-ext-"));
+    await writeGuardrailsConfig(cwd, { grader: { enabled: true } });
     const ctx = createFakeCtx(cwd, pi.entries);
     await startSession(pi, ctx);
 

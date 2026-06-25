@@ -79,13 +79,18 @@ export function transition(input: TransitionInput): TransitionResult {
   //    Exit is ONLY via clearHalt(humanAck). (design: "no model-callable bypass")
   // ---------------------------------------------------------------------------
   if (current.state === "HALTED") {
+    const reason =
+      current.armedReason ?? "Session halted by an inviolable breach.";
+    const violation = current.violatedConstraintId
+      ? ` Violation: ${current.violatedConstraintId}.`
+      : "";
     return {
       next: current,
       action: "halt",
-      reason: current.armedReason ?? "Session halted by an inviolable breach.",
+      reason,
       steer:
-        "This session is HALTED on an inviolable constraint. It cannot be " +
-        "cleared by any tool call — a human must acknowledge out-of-band.",
+        `This session is HALTED on an inviolable constraint.${violation} Reason: ${reason} ` +
+        "It cannot be cleared by any tool call — a human must acknowledge out-of-band.",
       transitioned: false,
     };
   }
@@ -105,19 +110,25 @@ export function transition(input: TransitionInput): TransitionResult {
     const reason =
       deterministic.reason ??
       "Inviolable/Critical constraint breached — hard stop.";
+    const violation = deterministic.constraintId ?? deterministic.ruleId;
+    const violationText = violation ? ` Violation: ${violation}.` : "";
+    const requiredBehavior = deterministic.requiredBehavior
+      ? ` Required behavior: ${deterministic.requiredBehavior}`
+      : "";
     return {
       next: bumpEpoch({
         ...current,
         state: "HALTED",
         cleanStreak: 0,
+        violatedConstraintId: violation,
         armedReason: reason,
         cooldownRemaining: 0,
       }),
       action: "halt",
       reason,
       steer:
-        "An inviolable constraint was violated. Stop. A human must " +
-        "acknowledge before this session can continue.",
+        `Guard halted session: inviolable/critical constraint violated.${violationText} Reason: ${reason}${requiredBehavior} ` +
+        "Stop. A human must acknowledge out-of-band before this session can continue.",
       transitioned: true,
     };
   }
